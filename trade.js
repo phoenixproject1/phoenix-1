@@ -1,81 +1,68 @@
-let trades = [];
-let initialBalance = 10000;
 let balance = 10000;
+let equity = 10000;
+const commissionRate = 0.001; // 0.1% مثل بایننس
 
-function openTrade(type) {
-  const volume = parseFloat(document.getElementById("tradeVolume").value);
-  const commission = parseFloat(document.getElementById("commission").value) / 100;
-  const symbol = document.querySelector("#price-table .selected-row")?.dataset.symbol || "BTCUSDT";
+function openTrade(symbol, type, volume, entryPrice) {
+  const tableBody = document.querySelector("#trade-table tbody");
 
-  const price = type === "BUY"
-    ? latestPrices[symbol].ask
-    : latestPrices[symbol].bid;
+  const row = document.createElement("tr");
+  row.innerHTML = `
+    <td>${symbol}</td>
+    <td style="color:${type === "buy" ? "blue" : "red"}">${type.toUpperCase()}</td>
+    <td>${volume}</td>
+    <td>${entryPrice.toFixed(2)}</td>
+    <td class="current-price">---</td>
+    <td class="pnl">---</td>
+    <td class="commission">---</td>
+    <td><button class="close-btn">❌</button></td>
+  `;
+  tableBody.appendChild(row);
 
-  const fee = price * volume * commission;
-  balance -= fee;
-
-  trades.push({
-    symbol,
-    type,
-    volume,
-    entry: price,
-    tp: null,
-    sl: null,
-    ts: null,
-    trailActive: null,
-    pnl: 0
-  });
-
-  renderTrades();
+  const commission = entryPrice * volume * commissionRate;
+  balance -= commission;
   updateBalance();
-}
 
-function renderTrades() {
-  const tbody = document.querySelector("#trades-table tbody");
-  tbody.innerHTML = "";
-  trades.forEach((t, i) => {
-    const row = document.createElement("tr");
-    row.innerHTML = `
-      <td>${t.symbol}</td>
-      <td style="color:${t.type==="BUY"?"blue":"red"}">${t.type}</td>
-      <td>${t.volume}</td>
-      <td>${t.entry.toFixed(2)}</td>
-      <td id="pnl-${i}">0.00</td>
-      <td><button onclick="closeTrade(${i})">❌</button></td>
-    `;
-    tbody.appendChild(row);
+  const ws = new WebSocket(`wss://stream.binance.com:9443/ws/${symbol.toLowerCase()}@ticker`);
+  ws.onmessage = (event) => {
+    const data = JSON.parse(event.data);
+    const price = parseFloat(data.c);
+    row.querySelector(".current-price").textContent = price.toFixed(2);
+
+    let pnl = (type === "buy") ? 
+              (price - entryPrice) * volume : 
+              (entryPrice - price) * volume;
+
+    const totalCommission = commission + price * volume * commissionRate;
+    row.querySelector(".commission").textContent = totalCommission.toFixed(2);
+
+    pnl -= totalCommission;
+    row.querySelector(".pnl").textContent = pnl.toFixed(2);
+    row.querySelector(".pnl").style.color = pnl >= 0 ? "green" : "red";
+
+    equity = balance + Array.from(document.querySelectorAll(".pnl"))
+      .map(el => parseFloat(el.textContent) || 0)
+      .reduce((a, b) => a + b, 0);
+    updateBalance();
+  };
+
+  row.querySelector(".close-btn").addEventListener("click", () => {
+    ws.close();
+    row.remove();
+    equity = balance + Array.from(document.querySelectorAll(".pnl"))
+      .map(el => parseFloat(el.textContent) || 0)
+      .reduce((a, b) => a + b, 0);
+    updateBalance();
   });
-}
-
-function updatePNL(prices) {
-  trades.forEach((t, i) => {
-    const bid = prices[t.symbol]?.bid || t.entry;
-    const ask = prices[t.symbol]?.ask || t.entry;
-    const price = t.type === "BUY" ? bid : ask;
-    let pnl = (t.type === "BUY" ? (price - t.entry) : (t.entry - price)) * t.volume;
-    t.pnl = pnl;
-
-    const el = document.getElementById("pnl-" + i);
-    if (el) {
-      el.textContent = pnl.toFixed(2);
-      el.className = pnl >= 0 ? "pnl-pos" : "pnl-neg";
-    }
-  });
-  updateBalance();
-}
-
-function closeTrade(i) {
-  balance += trades[i].pnl;
-  trades.splice(i, 1);
-  renderTrades();
-  updateBalance();
 }
 
 function updateBalance() {
-  let unrealized = 0;
-  trades.forEach(t => unrealized += t.pnl);
-  const equity = balance + unrealized;
-
-  document.getElementById("realBalanceValue").textContent = balance.toFixed(2);
-  document.getElementById("equityValue").textContent = equity.toFixed(2);
+  document.getElementById("balance").textContent = balance.toFixed(2);
+  document.getElementById("equity").textContent = equity.toFixed(2);
 }
+
+// تست اولیه
+document.addEventListener("DOMContentLoaded", () => {
+  setTimeout(() => {
+    openTrade("BTCUSDT", "buy", 0.01, 50000);
+  }, 2000);
+});
