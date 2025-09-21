@@ -41,9 +41,21 @@ th {
   font-weight: bold;
 }
 .ask { color: blue; font-weight: bold; }
-.bid { color: green; font-weight: bold; }
-.change-pos { color: darkgreen; font-weight: bold; }
+.bid { color: blue; font-weight: bold; }
+.change-pos { color: darkblue; font-weight: bold; }
 .change-neg { color: darkred; font-weight: bold; }
+
+.selected-row {
+  background-color: #dfe6e9 !important;
+}
+.pnl-pos {
+  color: blue;
+  font-weight: bold;
+}
+.pnl-neg {
+  color: red;
+  font-weight: bold;
+}
 
 
 
