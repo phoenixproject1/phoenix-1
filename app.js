@@ -2,65 +2,63 @@ let selectedSymbol = "BTCUSDT";
 let chart;
 let chartData = [];
 
+
+let selectedSymbol = "BTCUSDT"; // نماد پیشفرض
+let lastPrices = {}; // ذخیره آخرین قیمت‌ها
 // لیست نمادهای برتر
 const symbols = ["BTCUSDT", "ETHUSDT", "BNBUSDT", "XRPUSDT", "SOLUSDT"];
 
-// ایجاد جدول نمادها
-const tableBody = document.querySelector("#symbolsTable tbody");
-symbols.forEach(symbol => {
-  const row = document.createElement("tr");
-  row.innerHTML = `<td>${symbol}</td><td id="${symbol}">---</td>`;
-  row.addEventListener("click", () => selectSymbol(symbol, row));
-  tableBody.appendChild(row);
-});
 
-// انتخاب نماد
-function selectSymbol(symbol, row) {
-  selectedSymbol = symbol;
 
-  document.querySelectorAll("#symbolsTable tr").forEach(r => r.style.background = "");
-  row.style.background = "#ddd";
-
-  startSocket(symbol);
+function loadChart(symbol) {
+  document.getElementById("tradingview_chart").innerHTML = "";
+  new TradingView.widget({
+    "container_id": "tradingview_chart",
+    "width": "100%",
+    "height": "600",
+    "symbol": "BINANCE:" + symbol,
+    "interval": "60",
+    "timezone": "Etc/UTC",
+    "theme": "light",
+    "style": "1",
+    "locale": "fa",
+    "enable_publishing": false,
+    "allow_symbol_change": false,
+  });
 }
 
-// ایجاد چارت
-const ctx = document.getElementById("priceChart").getContext("2d");
-chart = new Chart(ctx, {
-  type: "line",
-  data: {
-    labels: [],
-    datasets: [{
-      label: "قیمت",
-      data: [],
-      borderColor: "blue"
-    }]
-  }
+document.addEventListener("DOMContentLoaded", () => {
+  loadChart(selectedSymbol);
+
+  const table = document.getElementById("price-table");
+  table.addEventListener("click", (e) => {
+    const row = e.target.closest("tr[data-symbol]");
+    if (row) {
+      selectedSymbol = row.getAttribute("data-symbol");
+      [...table.querySelectorAll("tr")].forEach(r => r.classList.remove("selected"));
+      row.classList.add("selected");
+      loadChart(selectedSymbol);
+    }
+  });
+
+  connectWS();
 });
 
-// اتصال WebSocket
-let ws;
-function startSocket(symbol) {
-  if (ws) ws.close();
+function connectWS() {
+  const streams = ["btcusdt@bookTicker", "ethusdt@bookTicker"];
+  const ws = new WebSocket("wss://stream.binance.com:9443/stream?streams=" + streams.join("/"));
 
-  ws = new WebSocket(`wss://stream.binance.com:9443/ws/${symbol.toLowerCase()}@trade`);
   ws.onmessage = (event) => {
-    const data = JSON.parse(event.data);
-    const price = parseFloat(data.p);
+    const data = JSON.parse(event.data).data;
+    const symbol = data.s;
+    const bid = parseFloat(data.b);
+    const ask = parseFloat(data.a);
 
-    document.getElementById(symbol).textContent = price.toFixed(2);
+    lastPrices[symbol] = { bid, ask };
 
-    chart.data.labels.push("");
-    chart.data.datasets[0].data.push(price);
-    if (chart.data.labels.length > 50) {
-      chart.data.labels.shift();
-      chart.data.datasets[0].data.shift();
-    }
-    chart.update();
-
-    updateTrades(price); // برای ترید
+    const bidEl = document.getElementById("bid-" + symbol);
+    const askEl = document.getElementById("ask-" + symbol);
+    if (bidEl) bidEl.textContent = bid.toFixed(2);
+    if (askEl) askEl.textContent = ask.toFixed(2);
   };
 }
-
-// شروع اولیه
-startSocket(selectedSymbol);
