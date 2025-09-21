@@ -19,14 +19,19 @@ document.addEventListener("DOMContentLoaded", () => {
   loadChart("BTCUSDT");
 
   // کلیک روی جدول → تغییر چارت
-  document.querySelectorAll("#price-table tbody tr").forEach(row => {
-    row.addEventListener("click", () => {
-      const symbol = row.getAttribute("data-symbol");
-      loadChart(symbol);
-      document.querySelectorAll("#price-table tbody tr").forEach(r => r.style.background = "");
-      row.style.background = "#e6f7ff";
-    });
+document.querySelectorAll("#price-table tbody tr").forEach(row => {
+  row.addEventListener("click", () => {
+    const symbol = row.getAttribute("data-symbol");
+    loadChart(symbol);
+
+    // همه سطرها رو ریست کن
+    document.querySelectorAll("#price-table tbody tr").forEach(r => r.classList.remove("selected-row"));
+
+    // به سطر انتخابی کلاس اضافه کن
+    row.classList.add("selected-row");
   });
+});
+
 
   startWebSocket();
 });
