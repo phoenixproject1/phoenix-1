@@ -86,3 +86,15 @@ function saveConfig() {
   closeConfig();
   alert("تنظیمات ذخیره شد ✅");
 }
+
+
+let balance = CONFIG.initialBalance;
+let equity = CONFIG.initialBalance;
+const commissionRate = CONFIG.commission;
+
+
+
+if ((balance - CONFIG.initialBalance) < CONFIG.dailyLossLimit) {
+  alert("حد ضرر روزانه فعال شد! معاملات بسته می‌شوند.");
+  // اینجا می‌تونی همه معاملات رو ببندی
+}
