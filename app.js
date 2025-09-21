@@ -1,10 +1,6 @@
-let selectedSymbol = "BTCUSDT";
-let chart;
-let chartData = [];
-
-
 let selectedSymbol = "BTCUSDT"; // نماد پیشفرض
 let lastPrices = {}; // ذخیره آخرین قیمت‌ها
+
 // لیست نمادهای برتر
 const symbols = ["BTCUSDT", "ETHUSDT", "BNBUSDT", "XRPUSDT", "SOLUSDT"];
 
