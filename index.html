@@ -42,6 +42,36 @@
     </div>
   </div>
 
+<div class="trade-box">
+  <div class="trade-controls">
+    حجم: <input type="number" id="tradeVolume" value="1" min="0.01" step="0.01"> 
+    کمیسیون (%): <input type="number" id="commission" value="0.1" step="0.01" style="width:60px;">
+    <button class="buy-btn" onclick="openTrade('BUY')">خرید</button>
+    <button class="sell-btn" onclick="openTrade('SELL')">فروش</button>
+  </div>
+  <table id="trades-table">
+    <thead>
+      <tr>
+        <th>Symbol</th>
+        <th>نوع</th>
+        <th>حجم</th>
+        <th>قیمت ورود</th>
+        <th>سود/ضرر</th>
+        <th>کمیسیون</th>
+        <th>بستن</th>
+      </tr>
+    </thead>
+    <tbody></tbody>
+  </table>
+  <div id="balanceBox" class="balance-box">
+    موجودی واقعی: <span id="realBalanceValue">10000.00</span> USDT <br>
+    موجودی کل (Equity): <span id="equityValue">10000.00</span> USDT
+  </div>
+</div>
+
+  
   <script src="app.js"></script>
+  <script src="trade.js"></script>
+
 </body>
 </html>
