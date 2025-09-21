@@ -1,67 +1,82 @@
-let trades = [];
 let balance = 10000;
-const initialBalance = 10000;
+let initialBalance = 10000;
+let trades = [];
 
-const buyBtn = document.getElementById("buyBtn");
-const sellBtn = document.getElementById("sellBtn");
+// باز کردن معامله
+function openTrade(type) {
+  const price = chart.data.datasets[0].data.slice(-1)[0]; // آخرین قیمت چارت
+  if (!price) {
+    alert("قیمت موجود نیست");
+    return;
+  }
 
-buyBtn.addEventListener("click", () => {
-  const volume = parseFloat(document.getElementById("trade-volume").value);
-  const price = lastPrices[selectedSymbol]?.ask || 0;
-  if (price > 0) addTrade(selectedSymbol, "BUY", price, volume);
-});
+  const volume = 1; // فعلاً ثابت
+  const commission = price * volume * (config.commission / 100);
 
-sellBtn.addEventListener("click", () => {
-  const volume = parseFloat(document.getElementById("trade-volume").value);
-  const price = lastPrices[selectedSymbol]?.bid || 0;
-  if (price > 0) addTrade(selectedSymbol, "SELL", price, volume);
-});
+  const trade = {
+    symbol: selectedSymbol,
+    type,
+    volume,
+    entry: price,
+    commission,
+    pnl: 0
+  };
 
-function addTrade(symbol, type, entry, volume) {
-  trades.push({ symbol, type, entry, volume, pnl: 0 });
+  trades.push(trade);
   renderTrades();
 }
 
+// بستن معامله
+function closeTrade(index) {
+  trades.splice(index, 1);
+  renderTrades();
+}
+
+// بروزرسانی سود/ضرر
+function updateTrades(currentPrice) {
+  trades.forEach(trade => {
+    if (trade.type === "BUY") {
+      trade.pnl = (currentPrice - trade.entry) * trade.volume - trade.commission;
+    } else {
+      trade.pnl = (trade.entry - currentPrice) * trade.volume - trade.commission;
+    }
+  });
+  renderTrades();
+}
+
+// نمایش جدول معاملات
 function renderTrades() {
-  const tbody = document.querySelector("#trades-table tbody");
+  const tbody = document.querySelector("#tradesTable tbody");
   tbody.innerHTML = "";
-  trades.forEach((t, i) => {
+
+  let equity = balance;
+
+  trades.forEach((trade, i) => {
+    equity += trade.pnl;
+
     const row = document.createElement("tr");
     row.innerHTML = `
-      <td>${t.symbol}</td>
-      <td>${t.type}</td>
-      <td>${t.volume}</td>
-      <td>${t.entry.toFixed(2)}</td>
-      <td id="pnl-${i}">0.00</td>
+      <td>${trade.symbol}</td>
+      <td style="color:${trade.type === "BUY" ? "blue" : "red"}">${trade.type}</td>
+      <td>${trade.volume}</td>
+      <td>${trade.entry.toFixed(2)}</td>
+      <td>${chart.data.datasets[0].data.slice(-1)[0]?.toFixed(2) || "---"}</td>
+      <td style="color:${trade.pnl >= 0 ? "blue" : "red"}">${trade.pnl.toFixed(2)}</td>
+      <td>${trade.commission.toFixed(2)}</td>
+      <td><button onclick="closeTrade(${i})">بستن</button></td>
     `;
     tbody.appendChild(row);
   });
+
+  document.getElementById("balanceRow").textContent =
+    `Balance: ${balance.toFixed(2)} | Equity: ${equity.toFixed(2)}`;
+
+  // بررسی حد ضرر روزانه و کلی
+  const dailyLoss = ((initialBalance - equity) / initialBalance) * 100;
+  if (dailyLoss >= config.dailyDrawdown) {
+    alert("❌ حد ضرر روزانه رد شده است.");
+  }
+  if (dailyLoss >= config.totalDrawdown) {
+    alert("❌ حد ضرر کلی رد شده است.");
+  }
 }
-
-function updatePNL() {
-  trades.forEach((t, i) => {
-    const bid = lastPrices[t.symbol]?.bid || t.entry;
-    const ask = lastPrices[t.symbol]?.ask || t.entry;
-    const price = t.type === "BUY" ? bid : ask;
-    const pnl = (t.type === "BUY" ? (price - t.entry) : (t.entry - price)) * t.volume;
-    t.pnl = pnl;
-
-    const el = document.getElementById("pnl-" + i);
-    if (el) {
-      el.textContent = pnl.toFixed(2);
-      el.className = pnl >= 0 ? "pnl-pos" : "pnl-neg";
-    }
-  });
-  updateBalance();
-}
-
-function updateBalance() {
-  let unrealized = 0;
-  trades.forEach(t => unrealized += t.pnl);
-  const equity = balance + unrealized;
-
-  document.getElementById("realBalanceValue").textContent = balance.toFixed(2);
-  document.getElementById("equityValue").textContent = equity.toFixed(2);
-}
-
-setInterval(updatePNL, 1000);
