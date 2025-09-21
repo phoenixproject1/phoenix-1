@@ -1,107 +1,67 @@
+let trades = [];
 let balance = 10000;
-let equity = 10000;
-const commissionRate = 0.001; // 0.1% مثل بایننس
+const initialBalance = 10000;
 
-function openTrade(symbol, type, volume, entryPrice) {
-  const tableBody = document.querySelector("#trade-table tbody");
+const buyBtn = document.getElementById("buyBtn");
+const sellBtn = document.getElementById("sellBtn");
 
-  const row = document.createElement("tr");
-  row.innerHTML = `
-    <td>${symbol}</td>
-    <td style="color:${type === "buy" ? "blue" : "red"}">${type.toUpperCase()}</td>
-    <td>${volume}</td>
-    <td>${entryPrice.toFixed(2)}</td>
-    <td class="current-price">---</td>
-    <td class="pnl">---</td>
-    <td class="commission">---</td>
-    <td><button class="close-btn">❌</button></td>
-  `;
-  tableBody.appendChild(row);
+buyBtn.addEventListener("click", () => {
+  const volume = parseFloat(document.getElementById("trade-volume").value);
+  const price = lastPrices[selectedSymbol]?.ask || 0;
+  if (price > 0) addTrade(selectedSymbol, "BUY", price, volume);
+});
 
-  const commission = entryPrice * volume * commissionRate;
-  balance -= commission;
-  updateBalance();
+sellBtn.addEventListener("click", () => {
+  const volume = parseFloat(document.getElementById("trade-volume").value);
+  const price = lastPrices[selectedSymbol]?.bid || 0;
+  if (price > 0) addTrade(selectedSymbol, "SELL", price, volume);
+});
 
-  const ws = new WebSocket(`wss://stream.binance.com:9443/ws/${symbol.toLowerCase()}@ticker`);
-  ws.onmessage = (event) => {
-    const data = JSON.parse(event.data);
-    const price = parseFloat(data.c);
-    row.querySelector(".current-price").textContent = price.toFixed(2);
+function addTrade(symbol, type, entry, volume) {
+  trades.push({ symbol, type, entry, volume, pnl: 0 });
+  renderTrades();
+}
 
-    let pnl = (type === "buy") ? 
-              (price - entryPrice) * volume : 
-              (entryPrice - price) * volume;
-
-    const totalCommission = commission + price * volume * commissionRate;
-    row.querySelector(".commission").textContent = totalCommission.toFixed(2);
-
-    pnl -= totalCommission;
-    row.querySelector(".pnl").textContent = pnl.toFixed(2);
-    row.querySelector(".pnl").style.color = pnl >= 0 ? "green" : "red";
-
-    equity = balance + Array.from(document.querySelectorAll(".pnl"))
-      .map(el => parseFloat(el.textContent) || 0)
-      .reduce((a, b) => a + b, 0);
-    updateBalance();
-  };
-
-  row.querySelector(".close-btn").addEventListener("click", () => {
-    ws.close();
-    row.remove();
-    equity = balance + Array.from(document.querySelectorAll(".pnl"))
-      .map(el => parseFloat(el.textContent) || 0)
-      .reduce((a, b) => a + b, 0);
-    updateBalance();
+function renderTrades() {
+  const tbody = document.querySelector("#trades-table tbody");
+  tbody.innerHTML = "";
+  trades.forEach((t, i) => {
+    const row = document.createElement("tr");
+    row.innerHTML = `
+      <td>${t.symbol}</td>
+      <td>${t.type}</td>
+      <td>${t.volume}</td>
+      <td>${t.entry.toFixed(2)}</td>
+      <td id="pnl-${i}">0.00</td>
+    `;
+    tbody.appendChild(row);
   });
 }
 
+function updatePNL() {
+  trades.forEach((t, i) => {
+    const bid = lastPrices[t.symbol]?.bid || t.entry;
+    const ask = lastPrices[t.symbol]?.ask || t.entry;
+    const price = t.type === "BUY" ? bid : ask;
+    const pnl = (t.type === "BUY" ? (price - t.entry) : (t.entry - price)) * t.volume;
+    t.pnl = pnl;
+
+    const el = document.getElementById("pnl-" + i);
+    if (el) {
+      el.textContent = pnl.toFixed(2);
+      el.className = pnl >= 0 ? "pnl-pos" : "pnl-neg";
+    }
+  });
+  updateBalance();
+}
+
 function updateBalance() {
-  document.getElementById("balance").textContent = balance.toFixed(2);
-  document.getElementById("equity").textContent = equity.toFixed(2);
+  let unrealized = 0;
+  trades.forEach(t => unrealized += t.pnl);
+  const equity = balance + unrealized;
+
+  document.getElementById("realBalanceValue").textContent = balance.toFixed(2);
+  document.getElementById("equityValue").textContent = equity.toFixed(2);
 }
 
-// تست اولیه
-document.addEventListener("DOMContentLoaded", () => {
-  setTimeout(() => {
-    openTrade("BTCUSDT", "buy", 0.01, 50000);
-  }, 2000);
-});
-
-
-function openConfig() {
-  document.getElementById("configCommission").value = CONFIG.commission * 100;
-  document.getElementById("configDailyLoss").value = CONFIG.dailyLossLimit;
-  document.getElementById("configMaxDrawdown").value = CONFIG.maxDrawdown;
-  document.getElementById("configModal").style.display = "flex";
-}
-
-function closeConfig() {
-  document.getElementById("configModal").style.display = "none";
-}
-
-function saveConfig() {
-  CONFIG.commission = parseFloat(document.getElementById("configCommission").value) / 100;
-  CONFIG.dailyLossLimit = parseFloat(document.getElementById("configDailyLoss").value);
-  CONFIG.maxDrawdown = parseFloat(document.getElementById("configMaxDrawdown").value);
-  closeConfig();
-  alert("تنظیمات ذخیره شد ✅");
-}
-
-
-let balance = CONFIG.initialBalance;
-let equity = CONFIG.initialBalance;
-const commissionRate = CONFIG.commission;
-
-
-
-let realizedPnL = balance - CONFIG.initialBalance; // سود/ضرر تحقق یافته
-
-if (realizedPnL <= getDailyLossLimit()) {
-  alert("❌ حد ضرر روزانه رد شد! معاملات بسته می‌شوند.");
-  // بستن معاملات
-}
-
-if (realizedPnL <= getMaxDrawdownLimit()) {
-  alert("❌ حد ضرر کلی رد شد! حساب مسدود شد.");
-  // دیگه اجازه ترید نده
-}
+setInterval(updatePNL, 1000);
