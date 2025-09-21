@@ -64,6 +64,22 @@
     موجودی: <span id="balance">10000</span> USDT |  
     Equity: <span id="equity">10000</span> USDT
   </div>
+  
+<!-- Modal تنظیمات -->
+<div id="configModal" class="modal">
+  <div class="modal-content">
+    <h3>تنظیمات</h3>
+    <label>کمیسیون (%):</label>
+    <input type="number" id="configCommission" step="0.01">
+    <label>حد ضرر روزانه (USDT):</label>
+    <input type="number" id="configDailyLoss">
+    <label>حد ضرر کلی (USDT):</label>
+    <input type="number" id="configMaxDrawdown">
+    <button onclick="saveConfig()">ذخیره</button>
+    <button onclick="closeConfig()">بستن</button>
+  </div>
+</div>
+<button onclick="openConfig()">⚙️ تنظیمات</button>
 
   <!-- فایل‌ها -->
   <script src="https://s3.tradingview.com/tv.js"></script>
