@@ -1,182 +1,77 @@
 <!DOCTYPE html>
 <html lang="fa">
 <head>
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>سیستم ترید آزمایشی</title>
-  <style>
-    body { font-family: Tahoma, sans-serif; background: #fafafa; }
-    h1 { text-align: center; }
-
-    .container {
-      display: flex;
-      justify-content: center;
-      gap: 20px;
-      max-width: 1400px;
-      margin: 20px auto;
-    }
-
-    .tradingview-widget-container {
-      flex: 3;
-      min-width: 800px;
-      height: 600px;
-      border: 1px solid #ccc;
-      border-radius: 12px;
-      overflow: hidden;
-      box-shadow: 0 0 15px rgba(0,0,0,0.1);
-      background: #fafafa;
-    }
-
-    .price-box {
-      flex: 1;
-      min-width: 320px;
-      border: 1px solid #ccc;
-      border-radius: 12px;
-      background: #fff;
-      box-shadow: 0 0 10px rgba(0,0,0,0.1);
-      padding: 15px;
-      text-align: left;
-    }
-
-    table {
-      width: 100%;
-      border-collapse: collapse;
-      margin-top: 10px;
-    }
-    th, td {
-      padding: 8px;
-      border: 1px solid #ddd;
-      text-align: center;
-      font-size: 14px;
-    }
-    th {
-      background: #f5f5f5;
-      color: black;
-      font-weight: bold;
-    }
-    .ask { color: blue; font-weight: bold; }
-    .bid { color: green; font-weight: bold; }
-
-    #price-table tr.selected {
-      background-color: #e0e0e0;
-    }
-
-    .trade-box {
-      max-width: 1200px;
-      margin: 30px auto;
-      padding: 15px;
-      background: #fff;
-      border: 1px solid #ccc;
-      border-radius: 12px;
-      box-shadow: 0 0 10px rgba(0,0,0,0.1);
-    }
-
-    .trade-controls { margin-bottom: 15px; text-align: center; }
-    .trade-controls input, .trade-controls button {
-      margin: 5px;
-      padding: 8px;
-    }
-    .buy-btn { background: green; color: #fff; border: none; border-radius: 6px; }
-    .sell-btn { background: red; color: #fff; border: none; border-radius: 6px; }
-
-    .pnl-pos { color: green; font-weight: bold; }
-    .pnl-neg { color: red; font-weight: bold; }
-
-    .balance-box {
-      margin-top: 15px;
-      padding: 10px;
-      background: #f9f9f9;
-      border: 1px solid #ddd;
-      border-radius: 8px;
-      font-size: 14px;
-    }
-  </style>
+  <meta charset="UTF-8">
+  <title>Crypto Trade Panel</title>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <link rel="stylesheet" href="style.css">
 </head>
 <body>
-  <h1>چارت بازار + سیستم ترید آزمایشی (نسخه v04)</h1>
+  <h2>پنل ترید</h2>
 
-  <div class="container">
-    <div class="tradingview-widget-container">
-      <div id="tradingview_chart"></div>
-    </div>
-    <div class="price-box">
-      <h3>آخرین قیمت‌ها</h3>
-      <table id="price-table">
+  <!-- جدول نمادها + چارت -->
+  <div style="display: flex; gap: 20px;">
+    <div style="flex: 1;">
+      <table border="1" id="symbolsTable">
         <thead>
           <tr>
-            <th>Symbol</th>
-            <th>Ask</th>
-            <th>Bid</th>
+            <th>نماد</th>
+            <th>قیمت</th>
           </tr>
         </thead>
-        <tbody>
-          <tr data-symbol="BTCUSDT">
-            <td>BTCUSDT</td>
-            <td id="ask-BTCUSDT" class="ask">---</td>
-            <td id="bid-BTCUSDT" class="bid">---</td>
-          </tr>
-          <tr data-symbol="ETHUSDT">
-            <td>ETHUSDT</td>
-            <td id="ask-ETHUSDT" class="ask">---</td>
-            <td id="bid-ETHUSDT" class="bid">---</td>
-          </tr>
-        </tbody>
+        <tbody></tbody>
       </table>
     </div>
+    <div style="flex: 2;">
+      <canvas id="priceChart" height="300"></canvas>
+    </div>
   </div>
 
-<!-- Modal تنظیمات -->
-<div id="configModal" class="modal">
-  <div class="modal-content">
+  <br>
+
+  <!-- جدول معاملات -->
+  <h3>معاملات باز</h3>
+  <table border="1" id="tradesTable">
+    <thead>
+      <tr>
+        <th>نماد</th>
+        <th>نوع</th>
+        <th>حجم</th>
+        <th>قیمت ورود</th>
+        <th>آخرین قیمت</th>
+        <th>سود/ضرر</th>
+        <th>کمیسیون</th>
+        <th>عملیات</th>
+      </tr>
+    </thead>
+    <tbody></tbody>
+    <tfoot>
+      <tr>
+        <td colspan="8" id="balanceRow">Balance: 10000 | Equity: 10000</td>
+      </tr>
+    </tfoot>
+  </table>
+
+  <br>
+
+  <!-- دکمه خرید/فروش -->
+  <button onclick="openTrade('BUY')">خرید</button>
+  <button onclick="openTrade('SELL')">فروش</button>
+  <button onclick="openSettings()">⚙️ تنظیمات</button>
+
+  <!-- Modal تنظیمات -->
+  <div id="settingsModal" style="display:none; position:fixed; top:20%; left:30%; background:white; padding:20px; border:1px solid black;">
     <h3>تنظیمات</h3>
-    <label>کمیسیون (%):</label>
-    <input type="number" id="commissionInput" value="0.1" step="0.01">
-    
-    <label>حد ضرر روزانه (%):</label>
-    <input type="number" id="dailyDDInput" value="5" step="0.1">
-    
-    <label>حد ضرر کلی (%):</label>
-    <input type="number" id="totalDDInput" value="20" step="0.1">
-
-    <button onclick="saveConfig()">ذخیره</button>
-    <button onclick="closeConfigModal()">بستن</button>
-  </div>
-</div>
-
-<!-- دکمه باز کردن تنظیمات -->
-<div style="text-align:center; margin-top:10px;">
-  <button onclick="openConfigModal()">⚙️ تنظیمات</button>
-</div>
-
-
-  
-  <div class="trade-box">
-    <div class="trade-controls">
-      حجم: <input type="number" id="trade-volume" value="1" min="0.01" step="0.01"> 
-      <button class="buy-btn" id="buyBtn">خرید</button>
-      <button class="sell-btn" id="sellBtn">فروش</button>
-    </div>
-    <table id="trades-table">
-      <thead>
-        <tr>
-          <th>Symbol</th>
-          <th>نوع</th>
-          <th>حجم</th>
-          <th>قیمت ورود</th>
-          <th>سود/ضرر</th>
-        </tr>
-      </thead>
-      <tbody></tbody>
-    </table>
-    <div id="balanceBox" class="balance-box">
-      موجودی: <span id="realBalanceValue">10000.00</span> USDT <br>
-      موجودی کل (Equity): <span id="equityValue">10000.00</span> USDT
-    </div>
+    <label>کمیسیون (%): <input type="number" id="commissionInput" value="0.1"></label><br><br>
+    <label>حد ضرر روزانه (%): <input type="number" id="dailyInput" value="5"></label><br><br>
+    <label>حد ضرر کلی (%): <input type="number" id="totalInput" value="20"></label><br><br>
+    <button onclick="saveSettings()">ذخیره</button>
+    <button onclick="closeSettings()">بستن</button>
   </div>
 
-  <script src="https://s3.tradingview.com/tv.js"></script>
-  <script src="app.js"></script>
+  <!-- فایل‌های JS -->
   <script src="config.js"></script>
+  <script src="app.js"></script>
   <script src="trade.js"></script>
 </body>
 </html>
