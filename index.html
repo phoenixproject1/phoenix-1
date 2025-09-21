@@ -2,18 +2,67 @@
 <html lang="fa">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>پلتفرم ترید</title>
-  <link rel="stylesheet" href="style.css">
+  <title>سیستم ترید با تنظیمات</title>
+  <style>
+    body { font-family: Tahoma, sans-serif; background: #f5f5f5; }
+    h1 { text-align: center; }
+
+    .container {
+      display: flex;
+      justify-content: center;
+      gap: 20px;
+      max-width: 1400px;
+      margin: 20px auto;
+    }
+    .chart-box {
+      flex: 3;
+      min-width: 800px;
+      height: 600px;
+      border: 1px solid #ccc;
+      border-radius: 12px;
+      background: #fff;
+      overflow: hidden;
+    }
+    .price-box {
+      flex: 1;
+      min-width: 320px;
+      border: 1px solid #ccc;
+      border-radius: 12px;
+      background: #fff;
+      padding: 15px;
+    }
+    table { width: 100%; border-collapse: collapse; margin-top: 10px; }
+    th, td { border: 1px solid #ddd; padding: 6px; text-align: center; }
+    th { background: #f0f0f0; font-weight: bold; }
+    .ask { color: blue; font-weight: bold; }
+    .bid { color: green; font-weight: bold; }
+    .change-pos { color: darkgreen; font-weight: bold; }
+    .change-neg { color: darkred; font-weight: bold; }
+
+    .settings-btn { margin: 10px auto; display: block; background: #555; color: #fff; border: none; border-radius: 6px; padding: 8px 12px; cursor: pointer; }
+
+    .modal {
+      display: none; position: fixed; top: 0; left: 0;
+      width: 100%; height: 100%;
+      background: rgba(0,0,0,0.6);
+      justify-content: center; align-items: center;
+    }
+    .modal-content {
+      background: #fff; padding: 20px; border-radius: 12px;
+      width: 400px;
+    }
+    .modal-content h3 { margin-top: 0; }
+    .modal-content label { display: block; margin: 10px 0 5px; }
+    .modal-content input { width: 100%; padding: 6px; margin-bottom: 10px; }
+  </style>
 </head>
 <body>
-  <h1>چارت + قیمت + ترید</h1>
+  <h1>چارت بازار + جدول قیمت‌ها</h1>
 
   <div class="container">
-    <div class="tradingview-widget-container">
+    <div class="chart-box">
       <div id="tradingview_chart"></div>
     </div>
-
     <div class="price-box">
       <h3>آخرین قیمت‌ها</h3>
       <table id="price-table">
@@ -27,63 +76,40 @@
         </thead>
         <tbody>
           <tr data-symbol="BTCUSDT">
-            <td id="ask-BTCUSDT">---</td>
-            <td id="bid-BTCUSDT">---</td>
+            <td id="ask-BTCUSDT" class="ask">---</td>
+            <td id="bid-BTCUSDT" class="bid">---</td>
             <td id="change-BTCUSDT">---</td>
             <td>BTCUSDT</td>
           </tr>
           <tr data-symbol="ETHUSDT">
-            <td id="ask-ETHUSDT">---</td>
-            <td id="bid-ETHUSDT">---</td>
+            <td id="ask-ETHUSDT" class="ask">---</td>
+            <td id="bid-ETHUSDT" class="bid">---</td>
             <td id="change-ETHUSDT">---</td>
             <td>ETHUSDT</td>
           </tr>
         </tbody>
       </table>
+      <button class="settings-btn" onclick="openConfig()">⚙️ تنظیمات</button>
     </div>
   </div>
 
-  <h2>لیست معاملات</h2>
-  <table id="trade-table">
-    <thead>
-      <tr>
-        <th>Symbol</th>
-        <th>نوع معامله</th>
-        <th>حجم</th>
-        <th>قیمت ورود</th>
-        <th>قیمت فعلی</th>
-        <th>سود/ضرر</th>
-        <th>کمیسیون</th>
-        <th>بستن</th>
-      </tr>
-    </thead>
-    <tbody></tbody>
-  </table>
-
-  <div id="balance-box">
-    موجودی: <span id="balance">10000</span> USDT |  
-    Equity: <span id="equity">10000</span> USDT
+  <!-- Modal تنظیمات -->
+  <div id="configModal" class="modal">
+    <div class="modal-content">
+      <h3>تنظیمات کلی</h3>
+      <label>کمیسیون (%):</label>
+      <input type="number" id="configCommission">
+      <label>حد ضرر روزانه (%):</label>
+      <input type="number" id="configDailyLoss">
+      <label>حد ضرر کلی (%):</label>
+      <input type="number" id="configMaxDrawdown">
+      <button onclick="saveConfig()">ذخیره</button>
+      <button onclick="closeConfig()">بستن</button>
+    </div>
   </div>
-  
-<!-- Modal تنظیمات -->
-<div id="configModal" class="modal">
-  <div class="modal-content">
-    <h3>تنظیمات</h3>
-    <label>کمیسیون (%):</label>
-    <input type="number" id="configCommission" step="0.01">
-    <label>حد ضرر روزانه (USDT):</label>
-    <input type="number" id="configDailyLoss">
-    <label>حد ضرر کلی (USDT):</label>
-    <input type="number" id="configMaxDrawdown">
-    <button onclick="saveConfig()">ذخیره</button>
-    <button onclick="closeConfig()">بستن</button>
-  </div>
-</div>
-<button onclick="openConfig()">⚙️ تنظیمات</button>
 
-  <!-- فایل‌ها -->
   <script src="https://s3.tradingview.com/tv.js"></script>
+  <script src="config.js"></script>
   <script src="app.js"></script>
-  <script src="trade.js"></script>
 </body>
 </html>
