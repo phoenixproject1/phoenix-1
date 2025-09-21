@@ -94,7 +94,14 @@ const commissionRate = CONFIG.commission;
 
 
 
-if ((balance - CONFIG.initialBalance) < CONFIG.dailyLossLimit) {
-  alert("حد ضرر روزانه فعال شد! معاملات بسته می‌شوند.");
-  // اینجا می‌تونی همه معاملات رو ببندی
+let realizedPnL = balance - CONFIG.initialBalance; // سود/ضرر تحقق یافته
+
+if (realizedPnL <= getDailyLossLimit()) {
+  alert("❌ حد ضرر روزانه رد شد! معاملات بسته می‌شوند.");
+  // بستن معاملات
+}
+
+if (realizedPnL <= getMaxDrawdownLimit()) {
+  alert("❌ حد ضرر کلی رد شد! حساب مسدود شد.");
+  // دیگه اجازه ترید نده
 }
