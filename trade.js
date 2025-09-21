@@ -66,3 +66,23 @@ document.addEventListener("DOMContentLoaded", () => {
     openTrade("BTCUSDT", "buy", 0.01, 50000);
   }, 2000);
 });
+
+
+function openConfig() {
+  document.getElementById("configCommission").value = CONFIG.commission * 100;
+  document.getElementById("configDailyLoss").value = CONFIG.dailyLossLimit;
+  document.getElementById("configMaxDrawdown").value = CONFIG.maxDrawdown;
+  document.getElementById("configModal").style.display = "flex";
+}
+
+function closeConfig() {
+  document.getElementById("configModal").style.display = "none";
+}
+
+function saveConfig() {
+  CONFIG.commission = parseFloat(document.getElementById("configCommission").value) / 100;
+  CONFIG.dailyLossLimit = parseFloat(document.getElementById("configDailyLoss").value);
+  CONFIG.maxDrawdown = parseFloat(document.getElementById("configMaxDrawdown").value);
+  closeConfig();
+  alert("تنظیمات ذخیره شد ✅");
+}
