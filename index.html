@@ -2,76 +2,77 @@
 <html lang="fa">
 <head>
   <meta charset="UTF-8">
-  <title>چارت و جدول لحظه‌ای بایننس</title>
-  <script src="https://s3.tradingview.com/tv.js"></script>
+  <title>Trading Simulator</title>
   <link rel="stylesheet" href="style.css">
+  <style>
+    body { font-family: Arial, sans-serif; direction: rtl; }
+    table { border-collapse: collapse; width: 100%; margin-bottom: 20px; }
+    th, td { border: 1px solid #ccc; padding: 8px; text-align: center; }
+    th { background: #f1f1f1; }
+    #tradingview_chart { border: 1px solid #ccc; margin: 10px 0; }
+    .balance-box { margin-top: 20px; font-weight: bold; }
+    button { padding: 5px 10px; margin: 2px; cursor: pointer; }
+  </style>
 </head>
 <body>
-  <h1 style="text-align:center">چارت + جدول لحظه‌ای بایننس</h1>
+  <h2>📊 جدول قیمت‌ها</h2>
+  <table id="price-table">
+    <thead>
+      <tr>
+        <th>نماد</th>
+        <th>Bid</th>
+        <th>Ask</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr data-symbol="BTCUSDT">
+        <td>BTCUSDT</td>
+        <td id="bid-BTCUSDT">-</td>
+        <td id="ask-BTCUSDT">-</td>
+      </tr>
+      <tr data-symbol="ETHUSDT">
+        <td>ETHUSDT</td>
+        <td id="bid-ETHUSDT">-</td>
+        <td id="ask-ETHUSDT">-</td>
+      </tr>
+    </tbody>
+  </table>
 
-  <div class="container">
-    <div class="tradingview-widget-container">
-      <div id="tradingview_chart"></div>
-    </div>
-    <div class="price-box">
-      <h3>آخرین قیمت‌ها</h3>
-      <table id="price-table">
-        <thead>
-          <tr>
-            <th>Ask</th>
-            <th>Bid</th>
-            <th>Change %</th>
-            <th>Symbol</th>
-          </tr>
-        </thead>
-        <tbody>
-          <tr data-symbol="BTCUSDT">
-            <td id="ask-BTCUSDT" class="ask">---</td>
-            <td id="bid-BTCUSDT" class="bid">---</td>
-            <td id="change-BTCUSDT">---</td>
-            <td>BTCUSDT</td>
-          </tr>
-          <tr data-symbol="ETHUSDT">
-            <td id="ask-ETHUSDT" class="ask">---</td>
-            <td id="bid-ETHUSDT" class="bid">---</td>
-            <td id="change-ETHUSDT">---</td>
-            <td>ETHUSDT</td>
-          </tr>
-        </tbody>
-      </table>
-    </div>
+  <h2>📈 نمودار</h2>
+  <div id="tradingview_chart"></div>
+
+  <h2>📝 معاملات</h2>
+  <div>
+    حجم معامله: <input type="number" id="tradeVolume" value="0.01" step="0.01">
+    کمیسیون (%): <input type="number" id="commission" value="0.1" step="0.01">
+    <button onclick="openTrade('BUY')">خرید</button>
+    <button onclick="openTrade('SELL')">فروش</button>
   </div>
 
-<div class="trade-box">
-  <div class="trade-controls">
-    حجم: <input type="number" id="tradeVolume" value="1" min="0.01" step="0.01"> 
-    کمیسیون (%): <input type="number" id="commission" value="0.1" step="0.01" style="width:60px;">
-    <button class="buy-btn" onclick="openTrade('BUY')">خرید</button>
-    <button class="sell-btn" onclick="openTrade('SELL')">فروش</button>
-  </div>
   <table id="trades-table">
     <thead>
       <tr>
-        <th>Symbol</th>
+        <th>نماد</th>
         <th>نوع</th>
         <th>حجم</th>
-        <th>قیمت ورود</th>
-        <th>سود/ضرر</th>
-        <th>کمیسیون</th>
-        <th>بستن</th>
+        <th>نقطه ورود</th>
+        <th>PNL</th>
+        <th>عملیات</th>
       </tr>
     </thead>
     <tbody></tbody>
   </table>
-  <div id="balanceBox" class="balance-box">
-    موجودی واقعی: <span id="realBalanceValue">10000.00</span> USDT <br>
-    موجودی کل (Equity): <span id="equityValue">10000.00</span> USDT
-  </div>
-</div>
 
-  
+  <div class="balance-box">
+    موجودی: <span id="realBalanceValue">10000</span> USDT <br>
+    اکوییتی: <span id="equityValue">10000</span> USDT
+  </div>
+
+  <!-- TradingView Widget -->
+  <script type="text/javascript" src="https://s3.tradingview.com/tv.js"></script>
+
+  <!-- فایل‌های JS -->
   <script src="app.js"></script>
   <script src="trade.js"></script>
-
 </body>
 </html>
