@@ -53,3 +53,25 @@ function connectWS() {
     if (askEl) askEl.textContent = ask.toFixed(2);
   };
 }
+
+
+function openConfigModal() {
+  document.getElementById("commissionInput").value = config.commission;
+  document.getElementById("dailyDDInput").value = config.dailyDrawdown;
+  document.getElementById("totalDDInput").value = config.totalDrawdown;
+  document.getElementById("configModal").style.display = "flex";
+}
+
+function closeConfigModal() {
+  document.getElementById("configModal").style.display = "none";
+}
+
+function saveConfig() {
+  updateConfig({
+    commission: parseFloat(document.getElementById("commissionInput").value),
+    dailyDrawdown: parseFloat(document.getElementById("dailyDDInput").value),
+    totalDrawdown: parseFloat(document.getElementById("totalDDInput").value)
+  });
+  closeConfigModal();
+  alert("تنظیمات ذخیره شد ✅");
+}
