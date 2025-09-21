@@ -44,3 +44,9 @@ th {
 .bid { color: green; font-weight: bold; }
 .change-pos { color: darkgreen; font-weight: bold; }
 .change-neg { color: darkred; font-weight: bold; }
+
+
+
+.selected-row {
+  background: #cce7ff !important; /* رنگ دلخواه */
+}
