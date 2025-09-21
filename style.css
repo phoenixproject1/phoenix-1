@@ -1,0 +1,46 @@
+body { font-family: Tahoma, sans-serif; background: #fafafa; }
+.container {
+  display: flex;
+  justify-content: center;
+  gap: 20px;
+  max-width: 1400px;
+  margin: 20px auto;
+}
+.tradingview-widget-container {
+  flex: 3;
+  min-width: 800px;
+  height: 600px;
+  border: 1px solid #ccc;
+  border-radius: 12px;
+  overflow: hidden;
+  background: #fff;
+}
+.price-box {
+  flex: 1;
+  min-width: 320px;
+  border: 1px solid #ccc;
+  border-radius: 12px;
+  background: #fff;
+  padding: 15px;
+  text-align: left;
+}
+table {
+  width: 100%;
+  border-collapse: collapse;
+  margin-top: 10px;
+}
+th, td {
+  padding: 8px;
+  border: 1px solid #ddd;
+  text-align: center;
+  font-size: 14px;
+}
+th {
+  background: #f5f5f5;
+  color: black;
+  font-weight: bold;
+}
+.ask { color: blue; font-weight: bold; }
+.bid { color: green; font-weight: bold; }
+.change-pos { color: darkgreen; font-weight: bold; }
+.change-neg { color: darkred; font-weight: bold; }
