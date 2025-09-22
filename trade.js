@@ -1,4 +1,10 @@
 // trade.js (ماژول معاملات + اتصال به window برای دکمه‌ها)
+
+// trade.js
+import { config } from "./config.js";
+import { checkDrawdown } from "./drawdown.js";
+// import { showNotification } from "./ui.js";  // اگه notification رو ببری تو ui.js
+
 let trades = [];
 let balance = 10000;
 let selectedTradeIndex = null; // برای مشخص کردن ترید انتخاب شده
@@ -24,6 +30,8 @@ function openTrade(type) {
     pnl: 0
   });
   renderTrades();
+  checkDrawdown();   // اضافه شد
+
 }
 
 function renderTrades() {
@@ -76,6 +84,8 @@ function closeTrade(i, reason = null) {
 
   trades.splice(i, 1);
   renderTrades();
+  checkDrawdown();   // اضافه شد
+
 }
 
 function removeTP(i) {
@@ -86,6 +96,7 @@ function removeTP(i) {
 function removeSL(i) {
   trades[i].sl = null;
   renderTrades();
+
 }
 
 function updateBalance() {
@@ -118,6 +129,8 @@ function updateBalance() {
 
   document.getElementById("balance").textContent = balance.toFixed(2);
   document.getElementById("equity").textContent = (balance + unrealized).toFixed(2);
+  checkDrawdown();   // اضافه شد
+
 }
 
 setInterval(updateBalance, 2000);
