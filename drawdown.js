@@ -1,29 +1,34 @@
 // drawdown.js
+import { trades, balance } from "./balance.js";
 import { config } from "./config.js";
-import { trades, closeTrade } from "./trade.js";
-import { showNotification, disableTradeButtons } from "./ui.js";
+import { showNotification } from "./ui.js";
 
-let dailyLoss = 0;
+let peakBalanceAllTime = balance;
+let peakBalanceToday = balance;
+let todayDate = new Date().toDateString();
+export let challengeFailed = false;
 
-function checkDrawdown(balance, trades) {
-  const currentEquity = parseFloat(document.getElementById("equity").textContent);
+export function checkDrawdown() {
+  const equity = balance + trades.reduce((acc, t) => acc + t.pnl, 0);
 
-  const dailyLimit = (config.dailyDD / 100) * config.initialBalance;
-  const totalLimit = (config.totalDD / 100) * config.initialBalance;
-
-  dailyLoss = config.initialBalance - currentEquity;
-
-  if (dailyLoss >= dailyLimit) {
-    trades.slice().forEach((_, i) => closeTrade(i, "حد ضرر روزانه"));
-    showNotification("به حد ضرر روزانه رسیدی. معاملات بسته شدند.", "error");
-    disableTradeButtons();
+  const nowDate = new Date().toDateString();
+  if (nowDate !== todayDate) {
+    todayDate = nowDate;
+    peakBalanceToday = equity;
   }
 
-  if (config.initialBalance - currentEquity >= totalLimit) {
-    trades.slice().forEach((_, i) => closeTrade(i, "حد ضرر کلی"));
-    showNotification("به حد ضرر کلی رسیدی. معاملات بسته شدند.", "error");
-    disableTradeButtons();
+  if (equity > peakBalanceAllTime) peakBalanceAllTime = equity;
+  if (equity > peakBalanceToday) peakBalanceToday = equity;
+
+  const dailyDD = ((peakBalanceToday - equity) / peakBalanceToday) * 100;
+  const totalDD = ((peakBalanceAllTime - equity) / peakBalanceAllTime) * 100;
+
+  if (dailyDD >= config.dailyDD || totalDD >= config.totalDD) {
+    trades.length = 0;
+    challengeFailed = true;
+    showNotification("❌ شما در این چالش مردود شدید !!!", "error");
+
+    document.getElementById("buyBtn").disabled = true;
+    document.getElementById("sellBtn").disabled = true;
   }
 }
-
-export { checkDrawdown };
