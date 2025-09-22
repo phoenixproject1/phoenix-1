@@ -1,13 +1,13 @@
-// trade.js (کامل — با TP/SL Modal + افت سرمایه + نوتیفیکیشن)
+// trade.js (اصلاح‌شده — افت سرمایه + نوتیفیکیشن + جلوگیری از کم شدن کمیسیون بعد از شکست)
 let trades = [];
 let balance = 10000;
-let selectedTradeIndex = null; 
+let selectedTradeIndex = null;
 let challengeFailed = false;   // ✅ پرچم پایان چالش
 
 function openTrade(type) {
   if (challengeFailed) {
-    showNotification("شما در این چالش مردود شدید !!!", "error");
-    return;
+    showNotification("❌ شما در این چالش مردود شدید. امکان باز کردن معامله جدید وجود ندارد.", "error");
+    return; // ⛔ جلوگیری کامل از باز شدن معامله و کم شدن کمیسیون
   }
 
   const volume = parseFloat(document.getElementById("tradeVolume").value) || 0;
@@ -55,8 +55,8 @@ function renderTrades() {
       <td>${t.commission}</td>
       <td id="pnl-${i}">0</td>
       <td>
-        <button onclick="openSettings(${i})">⚙️</button>
-        <button onclick="closeTrade(${i})">❌</button>
+        <button onclick="openSettings(${i})" ${challengeFailed ? "disabled" : ""}>⚙️</button>
+        <button onclick="closeTrade(${i})" ${challengeFailed ? "disabled" : ""}>❌</button>
       </td>
     `;
     tbody.appendChild(row);
@@ -65,7 +65,7 @@ function renderTrades() {
 }
 
 function closeTrade(i, reason = null) {
-  if (challengeFailed) return;
+  if (challengeFailed) return; // ⛔ بعد از شکست، معامله دستی هم بسته نشه
 
   const t = trades[i];
   const bid = parseFloat(document.getElementById("bid-" + t.symbol).textContent) || t.entry;
@@ -98,6 +98,8 @@ function removeSL(i) {
 }
 
 function updateBalance() {
+  if (challengeFailed) return; // ✅ بعد از شکست دیگه محاسبه نشه
+
   let unrealized = 0;
   trades.forEach((t, i) => {
     const bid = parseFloat(document.getElementById("bid-" + t.symbol).textContent) || t.entry;
@@ -135,6 +137,7 @@ setInterval(updateBalance, 2000);
 
 // ================= Modal برای TP/SL =================
 function openSettings(i) {
+  if (challengeFailed) return;
   selectedTradeIndex = i;
   const t = trades[i];
   document.getElementById("tpInput").value = t.tp !== null ? t.tp : "";
@@ -148,6 +151,7 @@ function closeSettings() {
 }
 
 function saveSettings() {
+  if (challengeFailed) return;
   const tp = parseFloat(document.getElementById("tpInput").value);
   const sl = parseFloat(document.getElementById("slInput").value);
 
@@ -171,6 +175,9 @@ function showNotification(msg, type = "info") {
   notif.style.borderRadius = "8px";
   notif.style.zIndex = "9999";
   notif.style.opacity = "0.95";
+  notif.style.fontSize = "14px";
+  notif.style.maxWidth = "300px";
+
   if (type === "error") {
     notif.style.background = "#b00020";
     notif.style.color = "#fff";
@@ -183,7 +190,7 @@ function showNotification(msg, type = "info") {
 
   setTimeout(() => {
     notif.remove();
-  }, 4000);
+  }, 5000);
 }
 
 // ===== مانیتورینگ افت سرمایه =====
