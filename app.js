@@ -55,7 +55,17 @@ function connectPrices() {
       // آپدیت مقادیر
       document.getElementById("bid-" + sym.toUpperCase()).textContent = parseFloat(data.b).toFixed(2);
       document.getElementById("ask-" + sym.toUpperCase()).textContent = parseFloat(data.a).toFixed(2);
-      document.getElementById("change-" + sym.toUpperCase()).textContent = parseFloat(data.P).toFixed(2) + "%";
+
+      const changeCell = document.getElementById("change-" + sym.toUpperCase());
+      const change = parseFloat(data.P).toFixed(2);
+      changeCell.textContent = change + "%";
+
+      // تغییر رنگ تغییرات
+      if (change >= 0) {
+        changeCell.style.color = "blue";
+      } else {
+        changeCell.style.color = "red";
+      }
     };
   });
 }
