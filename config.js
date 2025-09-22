@@ -22,3 +22,8 @@ export function saveConfigSettings() {
   config.totalDD = parseFloat(document.getElementById("totalDDInput").value) || config.totalDD;
   closeConfigSettings();
 }
+
+// 👉 وصل کردن به window برای استفاده در HTML
+window.openConfigSettings = openConfigSettings;
+window.closeConfigSettings = closeConfigSettings;
+window.saveConfigSettings = saveConfigSettings;
