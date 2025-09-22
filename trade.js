@@ -57,7 +57,7 @@ function renderTrades() {
   updateBalance();
 }
 
-function closeTrade(i) {
+function closeTrade(i, reason = null) {
   const t = trades[i];
   const bid = parseFloat(document.getElementById("bid-" + t.symbol).textContent) || t.entry;
   const ask = parseFloat(document.getElementById("ask-" + t.symbol).textContent) || t.entry;
@@ -68,6 +68,14 @@ function closeTrade(i) {
   const exitFee = exitPrice * t.volume * commissionRate;
 
   balance += (t.pnl - exitFee); // سود/ضرر نهایی بعد از کسر کمیسیون خروج
+
+  // ✅ نمایش نوتیفیکیشن اگر با TP یا SL بسته شد
+  if (reason) {
+    showNotification(
+      `معامله ${t.symbol} (${t.type}) با ${reason} بسته شد.`
+    );
+  }
+
   trades.splice(i, 1);
   renderTrades();
 }
@@ -101,13 +109,13 @@ function updateBalance() {
     // بررسی رسیدن به TP/SL
     if (t.tp !== null) {
       if ((t.type === "BUY" && price >= t.tp) || (t.type === "SELL" && price <= t.tp)) {
-        closeTrade(i);
+        closeTrade(i, "حد سود (TP)");
         return;
       }
     }
     if (t.sl !== null) {
       if ((t.type === "BUY" && price <= t.sl) || (t.type === "SELL" && price >= t.sl)) {
-        closeTrade(i);
+        closeTrade(i, "حد ضرر (SL)");
         return;
       }
     }
@@ -148,4 +156,25 @@ function saveSettings() {
   }
   closeSettings();
   renderTrades();
+}
+
+// ================= نوتیفیکیشن ساده =================
+function showNotification(msg) {
+  const notif = document.createElement("div");
+  notif.textContent = msg;
+  notif.style.position = "fixed";
+  notif.style.bottom = "20px";
+  notif.style.right = "20px";
+  notif.style.background = "#333";
+  notif.style.color = "#fff";
+  notif.style.padding = "10px 15px";
+  notif.style.borderRadius = "8px";
+  notif.style.zIndex = "9999";
+  notif.style.opacity = "0.9";
+
+  document.body.appendChild(notif);
+
+  setTimeout(() => {
+    notif.remove();
+  }, 3000);
 }
