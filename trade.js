@@ -8,9 +8,9 @@ function openTrade(type) {
   const ask = parseFloat(document.getElementById("ask-" + selectedSymbol).textContent);
   const entry = type === "BUY" ? ask : bid;
 
-  const commission = config.commission / 100;
-  const fee = entry * volume * commission;
-  balance -= fee; // فقط کمیسیون همین اول کم میشه
+  const commissionRate = config.commission / 100;
+  const fee = entry * volume * commissionRate;
+  balance -= fee; // کمیسیون ورود کم میشه
 
   trades.push({
     symbol: selectedSymbol,
@@ -58,8 +58,17 @@ function renderTrades() {
 }
 
 function closeTrade(i) {
-  balance += trades[i].pnl; // سود/ضرر فقط اینجا اعمال میشه
-  trades.splice(i,1);
+  const t = trades[i];
+  const bid = parseFloat(document.getElementById("bid-" + t.symbol).textContent) || t.entry;
+  const ask = parseFloat(document.getElementById("ask-" + t.symbol).textContent) || t.entry;
+  const exitPrice = t.type === "BUY" ? bid : ask;
+
+  // کمیسیون خروج
+  const commissionRate = config.commission / 100;
+  const exitFee = exitPrice * t.volume * commissionRate;
+
+  balance += (t.pnl - exitFee); // سود/ضرر نهایی بعد از کسر کمیسیون خروج
+  trades.splice(i, 1);
   renderTrades();
 }
 
@@ -82,7 +91,7 @@ function updateBalance() {
     const ask = parseFloat(document.getElementById("ask-" + t.symbol).textContent) || t.entry;
     const price = t.type === "BUY" ? bid : ask;
 
-    // محاسبه PnL
+    // محاسبه PnL (فقط برای نمایش)
     t.pnl = (t.type === "BUY" ? (price - t.entry) : (t.entry - price)) * t.volume;
 
     // نمایش PnL
@@ -93,7 +102,7 @@ function updateBalance() {
     if (t.tp !== null) {
       if ((t.type === "BUY" && price >= t.tp) || (t.type === "SELL" && price <= t.tp)) {
         closeTrade(i);
-        return; 
+        return;
       }
     }
     if (t.sl !== null) {
@@ -106,10 +115,10 @@ function updateBalance() {
     unrealized += t.pnl;
   });
 
-  // ✅ موجودی ثابت تا بسته شدن معامله
+  // موجودی (فقط بعد از بستن معامله تغییر می‌کنه)
   document.getElementById("balance").textContent = balance.toFixed(2);
 
-  // ✅ اکوییتی = موجودی + سود/ضرر شناور
+  // اکوییتی = موجودی + سود/ضرر شناور
   document.getElementById("equity").textContent = (balance + unrealized).toFixed(2);
 }
 
