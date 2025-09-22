@@ -1,28 +1,20 @@
-// trade.js
-import { trades, balance, updateBalanceUI } from "./balance.js";
-import { config } from "./config.js";
-import { showNotification } from "./ui.js";
-import { checkDrawdown, challengeFailed } from "./drawdown.js";
+// trade.js (ماژول معاملات + اتصال به window برای دکمه‌ها)
+let trades = [];
+let balance = 10000;
+let selectedTradeIndex = null; // برای مشخص کردن ترید انتخاب شده
 
-let selectedTradeIndex = null;
-
-export function openTrade(type) {
-  if (challengeFailed) {
-    showNotification("شما در این چالش مردود شدید !!!", "error");
-    return;
-  }
-
+function openTrade(type) {
   const volume = parseFloat(document.getElementById("tradeVolume").value) || 0;
-  const bid = parseFloat(document.getElementById("bid-" + window.selectedSymbol).textContent) || 0;
-  const ask = parseFloat(document.getElementById("ask-" + window.selectedSymbol).textContent) || 0;
+  const bid = parseFloat(document.getElementById("bid-" + selectedSymbol).textContent) || 0;
+  const ask = parseFloat(document.getElementById("ask-" + selectedSymbol).textContent) || 0;
   const entry = type === "BUY" ? ask : bid;
 
   const commissionRate = config.commission / 100;
   const fee = entry * volume * commissionRate;
-  balance -= fee;
+  balance -= fee; // کمیسیون ورود کم میشه
 
   trades.push({
-    symbol: window.selectedSymbol,
+    symbol: selectedSymbol,
     type,
     volume,
     entry,
@@ -31,11 +23,10 @@ export function openTrade(type) {
     sl: null,
     pnl: 0
   });
-
   renderTrades();
 }
 
-export function renderTrades() {
+function renderTrades() {
   const tbody = document.querySelector("#trades-table tbody");
   tbody.innerHTML = "";
   trades.forEach((t, i) => {
@@ -67,16 +58,17 @@ export function renderTrades() {
   updateBalance();
 }
 
-export function closeTrade(i, reason = null) {
+function closeTrade(i, reason = null) {
   const t = trades[i];
   const bid = parseFloat(document.getElementById("bid-" + t.symbol).textContent) || t.entry;
   const ask = parseFloat(document.getElementById("ask-" + t.symbol).textContent) || t.entry;
   const exitPrice = t.type === "BUY" ? bid : ask;
 
+  // کمیسیون خروج
   const commissionRate = config.commission / 100;
   const exitFee = exitPrice * t.volume * commissionRate;
 
-  balance += (t.pnl - exitFee);
+  balance += (t.pnl - exitFee); // سود/ضرر نهایی بعد از کسر کمیسیون خروج
 
   if (reason) {
     showNotification(`معامله ${t.symbol} (${t.type}) با ${reason} بسته شد.`, "info");
@@ -86,10 +78,17 @@ export function closeTrade(i, reason = null) {
   renderTrades();
 }
 
-window.removeTP = (i) => { trades[i].tp = null; renderTrades(); };
-window.removeSL = (i) => { trades[i].sl = null; renderTrades(); };
+function removeTP(i) {
+  trades[i].tp = null;
+  renderTrades();
+}
 
-export function updateBalance() {
+function removeSL(i) {
+  trades[i].sl = null;
+  renderTrades();
+}
+
+function updateBalance() {
   let unrealized = 0;
   trades.forEach((t, i) => {
     const bid = parseFloat(document.getElementById("bid-" + t.symbol).textContent) || t.entry;
@@ -117,32 +116,127 @@ export function updateBalance() {
     unrealized += t.pnl;
   });
 
-  updateBalanceUI(unrealized);
-  checkDrawdown();
+  document.getElementById("balance").textContent = balance.toFixed(2);
+  document.getElementById("equity").textContent = (balance + unrealized).toFixed(2);
 }
 
 setInterval(updateBalance, 2000);
 
-// trade.js
+// ================= Modal برای TP/SL =================
+function openSettings(index) {
+  selectedTradeIndex = index;
+  clearModalError();
 
-// ... کدهای قبلی همونطور بمونه ...
+  document.getElementById("tpInput").value = trades[index].tp != null ? trades[index].tp : "";
+  document.getElementById("slInput").value = trades[index].sl != null ? trades[index].sl : "";
+  document.getElementById("settingsModal").style.display = "flex";
+}
 
-// 👉 اضافه کردن توابع به window برای دسترسی از HTML
+function closeSettings() {
+  document.getElementById("settingsModal").style.display = "none";
+  selectedTradeIndex = null;
+}
+
+function saveSettings() {
+  const tpRaw = document.getElementById("tpInput").value;
+  const slRaw = document.getElementById("slInput").value;
+
+  if (selectedTradeIndex === null) return;
+
+  const trade = trades[selectedTradeIndex];
+  const tpVal = tpRaw === "" ? null : parseFloat(tpRaw);
+  const slVal = slRaw === "" ? null : parseFloat(slRaw);
+
+  if (tpVal !== null && isNaN(tpVal)) {
+    setModalError("مقدار حد سود (TP) معتبر نیست.");
+    return;
+  }
+  if (slVal !== null && isNaN(slVal)) {
+    setModalError("مقدار حد ضرر (SL) معتبر نیست.");
+    return;
+  }
+
+  if (trade.type === "BUY") {
+    if (tpVal !== null && tpVal <= trade.entry) {
+      setModalError("در معامله BUY، TP باید بزرگتر از قیمت ورود باشد.");
+      return;
+    }
+    if (slVal !== null && slVal >= trade.entry) {
+      setModalError("در معامله BUY، SL باید کوچکتر از قیمت ورود باشد.");
+      return;
+    }
+  } else {
+    if (tpVal !== null && tpVal >= trade.entry) {
+      setModalError("در معامله SELL، TP باید کوچکتر از قیمت ورود باشد.");
+      return;
+    }
+    if (slVal !== null && slVal <= trade.entry) {
+      setModalError("در معامله SELL، SL باید بزرگتر از قیمت ورود باشد.");
+      return;
+    }
+  }
+
+  trade.tp = tpVal;
+  trade.sl = slVal;
+
+  clearModalError();
+  closeSettings();
+  renderTrades();
+}
+
+function setModalError(msg) {
+  let modal = document.getElementById("settingsModal");
+  if (!modal) return;
+  let err = modal.querySelector("#settingsError");
+  if (!err) {
+    err = document.createElement("div");
+    err.id = "settingsError";
+    err.style.color = "red";
+    err.style.marginTop = "8px";
+    modal.querySelector(".modal-content")?.appendChild(err) || modal.appendChild(err);
+  }
+  err.textContent = msg;
+}
+
+function clearModalError() {
+  const modal = document.getElementById("settingsModal");
+  if (!modal) return;
+  const err = modal.querySelector("#settingsError");
+  if (err) err.remove();
+}
+
+// ================= Notification =================
+function showNotification(msg, type = "info") {
+  const notif = document.createElement("div");
+  notif.textContent = msg;
+  notif.style.position = "fixed";
+  notif.style.bottom = "20px";
+  notif.style.right = "20px";
+  notif.style.padding = "10px 15px";
+  notif.style.borderRadius = "8px";
+  notif.style.zIndex = "9999";
+  notif.style.opacity = "0.95";
+
+  if (type === "error") {
+    notif.style.background = "#b00020";
+    notif.style.color = "#fff";
+  } else {
+    notif.style.background = "#333";
+    notif.style.color = "#fff";
+  }
+
+  document.body.appendChild(notif);
+
+  setTimeout(() => {
+    notif.remove();
+  }, 4000);
+}
+
+// ================= اتصال به window برای HTML =================
 window.openTrade = openTrade;
 window.closeTrade = closeTrade;
 window.openSettings = openSettings;
 window.closeSettings = closeSettings;
 window.saveSettings = saveSettings;
-};
-
-// trade.js
-
-// ... کدهای قبلی همونطور بمونه ...
-
-// 👉 اضافه کردن توابع به window برای دسترسی از HTML
-window.openTrade = openTrade;
-window.closeTrade = closeTrade;
-window.openSettings = openSettings;
-window.closeSettings = closeSettings;
-window.saveSettings = saveSettings;
-
+window.removeTP = removeTP;
+window.removeSL = removeSL;
