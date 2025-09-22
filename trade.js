@@ -1,5 +1,6 @@
 let trades = [];
 let balance = 10000;
+let selectedTradeIndex = null; // برای مشخص کردن ترید انتخاب شده
 
 function openTrade(type) {
   const volume = parseFloat(document.getElementById("tradeVolume").value);
@@ -11,7 +12,16 @@ function openTrade(type) {
   const fee = entry * volume * commission;
   balance -= fee;
 
-  trades.push({symbol: selectedSymbol, type, volume, entry, pnl: 0});
+  trades.push({
+    symbol: selectedSymbol,
+    type,
+    volume,
+    entry,
+    commission: fee.toFixed(2),
+    tp: null,
+    sl: null,
+    pnl: 0
+  });
   renderTrades();
 }
 
@@ -25,8 +35,14 @@ function renderTrades() {
       <td>${t.type}</td>
       <td>${t.volume}</td>
       <td>${t.entry}</td>
+      <td>${t.commission}</td>
       <td id="pnl-${i}">0</td>
-      <td><button onclick="closeTrade(${i})">❌</button></td>
+      <td>${t.tp !== null ? t.tp : "-"}</td>
+      <td>${t.sl !== null ? t.sl : "-"}</td>
+      <td>
+        <button onclick="openSettings(${i})">⚙️</button>
+        <button onclick="closeTrade(${i})">❌</button>
+      </td>
     `;
     tbody.appendChild(row);
   });
@@ -41,13 +57,15 @@ function closeTrade(i) {
 
 function updateBalance() {
   let unrealized = 0;
-  trades.forEach(t => {
+  trades.forEach((t, i) => {
     const bid = parseFloat(document.getElementById("bid-" + t.symbol).textContent) || t.entry;
     const ask = parseFloat(document.getElementById("ask-" + t.symbol).textContent) || t.entry;
     const price = t.type === "BUY" ? bid : ask;
     t.pnl = (t.type === "BUY" ? (price - t.entry) : (t.entry - price)) * t.volume;
-    const el = document.getElementById("pnl-" + trades.indexOf(t));
+
+    const el = document.getElementById("pnl-" + i);
     if (el) el.textContent = t.pnl.toFixed(2);
+
     unrealized += t.pnl;
   });
   document.getElementById("balance").textContent = balance.toFixed(2);
@@ -55,3 +73,29 @@ function updateBalance() {
 }
 
 setInterval(updateBalance, 2000);
+
+// ================= Modal برای TP/SL =================
+
+function openSettings(index) {
+  selectedTradeIndex = index;
+  document.getElementById("tpInput").value = trades[index].tp || "";
+  document.getElementById("slInput").value = trades[index].sl || "";
+  document.getElementById("settingsModal").style.display = "flex";
+}
+
+function closeSettings() {
+  document.getElementById("settingsModal").style.display = "none";
+  selectedTradeIndex = null;
+}
+
+function saveSettings() {
+  const tp = document.getElementById("tpInput").value;
+  const sl = document.getElementById("slInput").value;
+
+  if (selectedTradeIndex !== null) {
+    trades[selectedTradeIndex].tp = tp ? parseFloat(tp) : null;
+    trades[selectedTradeIndex].sl = sl ? parseFloat(sl) : null;
+  }
+  closeSettings();
+  renderTrades();
+}
