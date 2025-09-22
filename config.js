@@ -5,20 +5,20 @@ let config = {
   totalDD: 20        // درصد
 };
 
-function openSettings() {
+function openConfigSettings() {
   document.getElementById("commissionInput").value = config.commission;
   document.getElementById("dailyDDInput").value = config.dailyDD;
   document.getElementById("totalDDInput").value = config.totalDD;
-  document.getElementById("settingsModal").style.display = "flex";
+  document.getElementById("configModal").style.display = "flex";
 }
 
-function closeSettings() {
-  document.getElementById("settingsModal").style.display = "none";
+function closeConfigSettings() {
+  document.getElementById("configModal").style.display = "none";
 }
 
-function saveSettings() {
+function saveConfigSettings() {
   config.commission = parseFloat(document.getElementById("commissionInput").value);
   config.dailyDD = parseFloat(document.getElementById("dailyDDInput").value);
   config.totalDD = parseFloat(document.getElementById("totalDDInput").value);
-  closeSettings();
+  closeConfigSettings();
 }
