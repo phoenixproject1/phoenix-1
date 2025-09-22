@@ -23,12 +23,17 @@ export function checkDrawdown() {
   const dailyDD = ((peakBalanceToday - equity) / peakBalanceToday) * 100;
   const totalDD = ((peakBalanceAllTime - equity) / peakBalanceAllTime) * 100;
 
-  if (dailyDD >= config.dailyDD || totalDD >= config.totalDD) {
-    trades.length = 0;
+  if (!challengeFailed && (dailyDD >= config.dailyDD || totalDD >= config.totalDD)) {
+    trades.length = 0; // همه معاملات بسته بشن
     challengeFailed = true;
     showNotification("❌ شما در این چالش مردود شدید !!!", "error");
+  }
 
-    document.getElementById("buyBtn").disabled = true;
-    document.getElementById("sellBtn").disabled = true;
+  // دکمه‌ها همیشه بررسی بشن
+  const buyBtn = document.getElementById("buyBtn");
+  const sellBtn = document.getElementById("sellBtn");
+  if (buyBtn && sellBtn) {
+    buyBtn.disabled = challengeFailed;
+    sellBtn.disabled = challengeFailed;
   }
 }
