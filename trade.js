@@ -1,9 +1,19 @@
-// trade.js (????? ??? — ?????????? TP/SL + ???? ???? modal)
+// trade.js (با مانیتورینگ Drawdown + نوتیفیکیشن)
 let trades = [];
 let balance = 10000;
-let selectedTradeIndex = null; // برای مشخص کردن ترید انتخاب شده
+let selectedTradeIndex = null;
+
+let peakBalanceAllTime = balance;
+let peakBalanceToday = balance;
+let todayDate = new Date().toDateString();
+let challengeFailed = false; // جلوگیری از ادامه بعد از شکست
 
 function openTrade(type) {
+  if (challengeFailed) {
+    showNotification("❌ شما در این چالش مردود شدید. معامله جدید مجاز نیست.", "error");
+    return;
+  }
+
   const volume = parseFloat(document.getElementById("tradeVolume").value) || 0;
   const bid = parseFloat(document.getElementById("bid-" + selectedSymbol).textContent) || 0;
   const ask = parseFloat(document.getElementById("ask-" + selectedSymbol).textContent) || 0;
@@ -11,8 +21,7 @@ function openTrade(type) {
 
   const commissionRate = config.commission / 100;
   const fee = entry * volume * commissionRate;
-  balance -= fee; // کمیسیون ورود کم میشه
-
+  balance -= fee; // کمیسیون ورود
 
   trades.push({
     symbol: selectedSymbol,
@@ -50,8 +59,8 @@ function renderTrades() {
       <td>${t.commission}</td>
       <td id="pnl-${i}">0</td>
       <td>
-        <button onclick="openSettings(${i})">⚙️</button>
-        <button onclick="closeTrade(${i})">❌</button>
+        <button onclick="openSettings(${i})" ${challengeFailed ? "disabled" : ""}>⚙️</button>
+        <button onclick="closeTrade(${i})" ${challengeFailed ? "disabled" : ""}>❌</button>
       </td>
     `;
     tbody.appendChild(row);
@@ -60,183 +69,98 @@ function renderTrades() {
 }
 
 function closeTrade(i, reason = null) {
+  if (challengeFailed) return;
+
   const t = trades[i];
   const bid = parseFloat(document.getElementById("bid-" + t.symbol).textContent) || t.entry;
   const ask = parseFloat(document.getElementById("ask-" + t.symbol).textContent) || t.entry;
   const exitPrice = t.type === "BUY" ? bid : ask;
 
-  // کمیسیون خروج
   const commissionRate = config.commission / 100;
   const exitFee = exitPrice * t.volume * commissionRate;
 
-  balance += (t.pnl - exitFee); // سود/ضرر نهایی بعد از کسر کمیسیون خروج
-
-  // نمایش نوتیفیکیشن اگر با TP یا SL بسته شد
+  balance += (t.pnl - exitFee);
 
   if (reason) {
-    showNotification(`معامله ${t.symbol} (${t.type}) ?? ${reason} بسته شد.`, "info");
+    showNotification(`معامله ${t.symbol} (${t.type}) با ${reason} بسته شد.`, "info");
   }
 
   trades.splice(i, 1);
   renderTrades();
 }
 
- // حذف دستی TP
-
 function removeTP(i) {
   trades[i].tp = null;
   renderTrades();
 }
 
-// حذف دستی SL
 function removeSL(i) {
   trades[i].sl = null;
   renderTrades();
 }
 
 function updateBalance() {
+  if (challengeFailed) return;
+
   let unrealized = 0;
-  // ????: ??? trade ???? ???? renderTrades() ?????? ???????? ?????? ? ??? ???? ?????? ???? ??????.
   trades.forEach((t, i) => {
     const bid = parseFloat(document.getElementById("bid-" + t.symbol).textContent) || t.entry;
     const ask = parseFloat(document.getElementById("ask-" + t.symbol).textContent) || t.entry;
     const price = t.type === "BUY" ? bid : ask;
 
-// محاسبه PnL (فقط برای نمایش)
-t.pnl = (t.type === "BUY" ? (price - t.entry) : (t.entry - price)) * t.volume;
+    t.pnl = (t.type === "BUY" ? (price - t.entry) : (t.entry - price)) * t.volume;
 
-    // نمایش PnL
     const el = document.getElementById("pnl-" + i);
     if (el) el.textContent = t.pnl.toFixed(2);
 
-    // بررسی رسیدن به TP/SL
-    if (t.tp !== null) {
-      if ((t.type === "BUY" && price >= t.tp) || (t.type === "SELL" && price <= t.tp)) {
-        closeTrade(i, "حد سود (TP)");
-        return;
-      }
+    if (t.tp !== null && ((t.type === "BUY" && price >= t.tp) || (t.type === "SELL" && price <= t.tp))) {
+      closeTrade(i, "حد سود (TP)");
+      return;
     }
-    if (t.sl !== null) {
-      if ((t.type === "BUY" && price <= t.sl) || (t.type === "SELL" && price >= t.sl)) {
-        closeTrade(i, "حد ضرر (SL)");
-        return;
-      }
+    if (t.sl !== null && ((t.type === "BUY" && price <= t.sl) || (t.type === "SELL" && price >= t.sl))) {
+      closeTrade(i, "حد ضرر (SL)");
+      return;
     }
 
     unrealized += t.pnl;
   });
 
-  // موجودی (فقط بعد از بستن معامله تغییر می‌کنه)
   document.getElementById("balance").textContent = balance.toFixed(2);
+  document.getElementById("equity").textContent = (balance + unrealized).toFixed(2);
 
-// اکوییتی = موجودی + سود/ضرر شناور
-document.getElementById("equity").textContent = (balance + unrealized).toFixed(2);
+  checkDrawdown(balance + unrealized);
 }
 
 setInterval(updateBalance, 2000);
 
-// ================= Modal برای TP/SL =================
-
-function openSettings(index) {
-  selectedTradeIndex = index;
-  // ??? ???? ?????? ????
-  clearModalError();
-
-  document.getElementById("tpInput").value = trades[index].tp != null ? trades[index].tp : "";
-  document.getElementById("slInput").value = trades[index].sl != null ? trades[index].sl : "";
-  document.getElementById("settingsModal").style.display = "flex";
-}
-
-function closeSettings() {
-  document.getElementById("settingsModal").style.display = "none";
-  selectedTradeIndex = null;
-}
-
-function saveSettings() {
-  const tpRaw = document.getElementById("tpInput").value;
-  const slRaw = document.getElementById("slInput").value;
-
-  if (selectedTradeIndex === null) return;
-
-  const trade = trades[selectedTradeIndex];
-
-  // ????? ?? ??? ?? null
-  const tpVal = tpRaw === "" ? null : parseFloat(tpRaw);
-  const slVal = slRaw === "" ? null : parseFloat(slRaw);
-
-  // ????? ????? ???? ?????
-  if (tpVal !== null && isNaN(tpVal)) {
-    setModalError("????? ?? ??? (TP) ????? ????.");
-    return;
-  }
-  if (slVal !== null && isNaN(slVal)) {
-    setModalError("????? ?? ??? (SL) ????? ????.");
-    return;
+// ========== مانیتورینگ افت سرمایه ==========
+function checkDrawdown(equity) {
+  const nowDate = new Date().toDateString();
+  if (nowDate !== todayDate) {
+    todayDate = nowDate;
+    peakBalanceToday = equity;
   }
 
-  // ?????????? ?? ???? ??? ??????
-  if (trade.type === "BUY") {
-    // TP ???? ?????? ?? entry? SL ???? ?????? ?? entry
-    if (tpVal !== null && tpVal <= trade.entry) {
-      setModalError("???? ?????? BUY? ?? ??? ???? ??????? ?? ???? ???? ????.");
-      return;
-    }
-    if (slVal !== null && slVal >= trade.entry) {
-      setModalError("???? ?????? BUY? ?? ??? ???? ??????? ?? ???? ???? ????.");
-      return;
-    }
-    if (tpVal !== null && slVal !== null && !(slVal < trade.entry && trade.entry < tpVal)) {
-      setModalError("???? BUY ????: SL < entry < TP ?????? ????.");
-      return;
-    }
-  } else { // SELL
-    // TP ???? ?????? ?? entry? SL ???? ?????? ?? entry
-    if (tpVal !== null && tpVal >= trade.entry) {
-      setModalError("???? ?????? SELL? ?? ??? ???? ??????? ?? ???? ???? ????.");
-      return;
-    }
-    if (slVal !== null && slVal <= trade.entry) {
-      setModalError("???? ?????? SELL? ?? ??? ???? ??????? ?? ???? ???? ????.");
-      return;
-    }
-    if (tpVal !== null && slVal !== null && !(tpVal < trade.entry && trade.entry < slVal)) {
-      setModalError("???? SELL ????: TP < entry < SL ?????? ????.");
-      return;
-    }
+  if (equity > peakBalanceAllTime) peakBalanceAllTime = equity;
+  if (equity > peakBalanceToday) peakBalanceToday = equity;
+
+  const dailyDD = ((peakBalanceToday - equity) / peakBalanceToday) * 100;
+  const totalDD = ((peakBalanceAllTime - equity) / peakBalanceAllTime) * 100;
+
+  if (dailyDD >= config.dailyDD || totalDD >= config.totalDD) {
+    trades = [];
+    renderTrades();
+    challengeFailed = true;
+
+    const reason = dailyDD >= config.dailyDD ? "❌ حد ضرر روزانه فعال شد!" : "❌ حد ضرر کلی فعال شد!";
+    showNotification(reason + " همه معاملات بسته شدند.", "error");
+
+    document.getElementById("buyBtn").disabled = true;
+    document.getElementById("sellBtn").disabled = true;
   }
-
-  // ?? ???? ????? ????? ????? ??
-  trade.tp = tpVal;
-  trade.sl = slVal;
-
-  clearModalError();
-  closeSettings();
-  renderTrades();
 }
 
-// ================= Modal error helpers =================
-function setModalError(msg) {
-  let modal = document.getElementById("settingsModal");
-  if (!modal) return;
-  let err = modal.querySelector("#settingsError");
-  if (!err) {
-    err = document.createElement("div");
-    err.id = "settingsError";
-    err.style.color = "red";
-    err.style.marginTop = "8px";
-    modal.querySelector(".modal-content")?.appendChild(err) || modal.appendChild(err);
-  }
-  err.textContent = msg;
-}
-
-function clearModalError() {
-  const modal = document.getElementById("settingsModal");
-  if (!modal) return;
-  const err = modal.querySelector("#settingsError");
-  if (err) err.remove();
-}
-
-// ================= ?????????? ???? =================
+// ========== نوتیفیکیشن ==========
 function showNotification(msg, type = "info") {
   const notif = document.createElement("div");
   notif.textContent = msg;
@@ -247,18 +171,15 @@ function showNotification(msg, type = "info") {
   notif.style.borderRadius = "8px";
   notif.style.zIndex = "9999";
   notif.style.opacity = "0.95";
-  // ???????? ?? ???? ???
+
   if (type === "error") {
-    notif.style.background = "#b00020"; // ????
+    notif.style.background = "#b00020";
     notif.style.color = "#fff";
   } else {
-    notif.style.background = "#333"; // ??????? ????
+    notif.style.background = "#333";
     notif.style.color = "#fff";
   }
 
   document.body.appendChild(notif);
-
-  setTimeout(() => {
-    notif.remove();
-  }, 4000);
+  setTimeout(() => notif.remove(), 5000);
 }
