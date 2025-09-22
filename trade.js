@@ -10,7 +10,7 @@ function openTrade(type) {
 
   const commission = config.commission / 100;
   const fee = entry * volume * commission;
-  balance -= fee;
+  balance -= fee; // فقط کمیسیون همین اول کم میشه
 
   trades.push({
     symbol: selectedSymbol,
@@ -47,7 +47,6 @@ function renderTrades() {
       </td>
       <td>${t.commission}</td>
       <td id="pnl-${i}">0</td>
-
       <td>
         <button onclick="openSettings(${i})">⚙️</button>
         <button onclick="closeTrade(${i})">❌</button>
@@ -59,7 +58,7 @@ function renderTrades() {
 }
 
 function closeTrade(i) {
-  balance += trades[i].pnl;
+  balance += trades[i].pnl; // سود/ضرر فقط اینجا اعمال میشه
   trades.splice(i,1);
   renderTrades();
 }
@@ -94,7 +93,7 @@ function updateBalance() {
     if (t.tp !== null) {
       if ((t.type === "BUY" && price >= t.tp) || (t.type === "SELL" && price <= t.tp)) {
         closeTrade(i);
-        return; // چون trades تغییر کرد باید متوقف بشه
+        return; 
       }
     }
     if (t.sl !== null) {
@@ -107,8 +106,10 @@ function updateBalance() {
     unrealized += t.pnl;
   });
 
-  // آپدیت موجودی و اکوییتی
+  // ✅ موجودی ثابت تا بسته شدن معامله
   document.getElementById("balance").textContent = balance.toFixed(2);
+
+  // ✅ اکوییتی = موجودی + سود/ضرر شناور
   document.getElementById("equity").textContent = (balance + unrealized).toFixed(2);
 }
 
