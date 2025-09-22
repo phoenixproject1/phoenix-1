@@ -52,3 +52,9 @@ th, td { padding: 6px; border: 1px solid #ddd; text-align: center; }
   border-radius: 12px;
   width: 400px;
 }
+
+/* رنگ ردیف انتخابی */
+#symbolsTable tr.selected {
+  background-color: #ddd !important;
+}
+
