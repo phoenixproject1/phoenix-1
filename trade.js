@@ -1,15 +1,9 @@
-// trade.js (نهایی — جلوگیری از کمیسیون بعد شکست + نوتیفیکیشن درست)
+// trade.js (????? ??? — ?????????? TP/SL + ???? ???? modal)
 let trades = [];
 let balance = 10000;
-let selectedTradeIndex = null;
-let challengeFailed = false;   // ✅ پرچم پایان چالش
+let selectedTradeIndex = null; // ???? ???? ???? ???? ?????? ???
 
 function openTrade(type) {
-  if (challengeFailed) {
-    showNotification("❌ شما در این چالش مردود شدید. امکان باز کردن معامله جدید وجود ندارد.", "error");
-    return; // ⛔ جلوگیری کامل از باز شدن معامله و کم شدن کمیسیون
-  }
-
   const volume = parseFloat(document.getElementById("tradeVolume").value) || 0;
   const bid = parseFloat(document.getElementById("bid-" + selectedSymbol).textContent) || 0;
   const ask = parseFloat(document.getElementById("ask-" + selectedSymbol).textContent) || 0;
@@ -17,7 +11,7 @@ function openTrade(type) {
 
   const commissionRate = config.commission / 100;
   const fee = entry * volume * commissionRate;
-  balance -= fee;
+  balance -= fee; // ??????? ???? ?? ????
 
   trades.push({
     symbol: selectedSymbol,
@@ -44,19 +38,19 @@ function renderTrades() {
       <td>${t.entry}</td>
       <td>
         ${t.tp !== null 
-          ? `${t.tp} <button onclick="removeTP(${i})">❌</button>` 
+          ? `${t.tp} <button onclick="removeTP(${i})">?</button>` 
           : "-"}
       </td>
       <td>
         ${t.sl !== null 
-          ? `${t.sl} <button onclick="removeSL(${i})">❌</button>` 
+          ? `${t.sl} <button onclick="removeSL(${i})">?</button>` 
           : "-"}
       </td>
       <td>${t.commission}</td>
       <td id="pnl-${i}">0</td>
       <td>
-        <button onclick="openSettings(${i})" ${challengeFailed ? "disabled" : ""}>⚙️</button>
-        <button onclick="closeTrade(${i})" ${challengeFailed ? "disabled" : ""}>❌</button>
+        <button onclick="openSettings(${i})">??</button>
+        <button onclick="closeTrade(${i})">?</button>
       </td>
     `;
     tbody.appendChild(row);
@@ -65,61 +59,63 @@ function renderTrades() {
 }
 
 function closeTrade(i, reason = null) {
-  if (challengeFailed) return; // ⛔ بعد از شکست بسته نشه
-
   const t = trades[i];
   const bid = parseFloat(document.getElementById("bid-" + t.symbol).textContent) || t.entry;
   const ask = parseFloat(document.getElementById("ask-" + t.symbol).textContent) || t.entry;
   const exitPrice = t.type === "BUY" ? bid : ask;
 
+  // ??????? ????
   const commissionRate = config.commission / 100;
   const exitFee = exitPrice * t.volume * commissionRate;
 
-  balance += (t.pnl - exitFee);
+  balance += (t.pnl - exitFee); // ???/??? ????? ??? ?? ??? ??????? ????
 
+  // ????? ?????????? ??? ?? TP ?? SL ???? ??
   if (reason) {
-    showNotification(`معامله ${t.symbol} (${t.type}) با ${reason} بسته شد.`, "info");
+    showNotification(`?????? ${t.symbol} (${t.type}) ?? ${reason} ???? ??.`, "info");
   }
 
   trades.splice(i, 1);
   renderTrades();
 }
 
-// حذف دستی TP
+// ??? ???? TP
 function removeTP(i) {
   trades[i].tp = null;
   renderTrades();
 }
 
-// حذف دستی SL
+// ??? ???? SL
 function removeSL(i) {
   trades[i].sl = null;
   renderTrades();
 }
 
 function updateBalance() {
-  if (challengeFailed) return; // ✅ بعد از شکست محاسبه متوقف بشه
-
   let unrealized = 0;
+  // ????: ??? trade ???? ???? renderTrades() ?????? ???????? ?????? ? ??? ???? ?????? ???? ??????.
   trades.forEach((t, i) => {
     const bid = parseFloat(document.getElementById("bid-" + t.symbol).textContent) || t.entry;
     const ask = parseFloat(document.getElementById("ask-" + t.symbol).textContent) || t.entry;
     const price = t.type === "BUY" ? bid : ask;
 
+    // ?????? PnL (??? ???? ?????)
     t.pnl = (t.type === "BUY" ? (price - t.entry) : (t.entry - price)) * t.volume;
 
+    // ????? PnL
     const el = document.getElementById("pnl-" + i);
     if (el) el.textContent = t.pnl.toFixed(2);
 
+    // ????? ????? ?? TP/SL
     if (t.tp !== null) {
       if ((t.type === "BUY" && price >= t.tp) || (t.type === "SELL" && price <= t.tp)) {
-        closeTrade(i, "حد سود (TP)");
+        closeTrade(i, "?? ??? (TP)");
         return;
       }
     }
     if (t.sl !== null) {
       if ((t.type === "BUY" && price <= t.sl) || (t.type === "SELL" && price >= t.sl)) {
-        closeTrade(i, "حد ضرر (SL)");
+        closeTrade(i, "?? ??? (SL)");
         return;
       }
     }
@@ -127,21 +123,26 @@ function updateBalance() {
     unrealized += t.pnl;
   });
 
+  // ?????? (??? ??? ?? ???? ?????? ????? ??????)
   document.getElementById("balance").textContent = balance.toFixed(2);
-  document.getElementById("equity").textContent = (balance + unrealized).toFixed(2);
 
-  checkDrawdown();
+  // ??????? = ?????? + ???/??? ?????
+  document.getElementById("equity").textContent = (balance + unrealized).toFixed(2);
+  checkDrawdown(); // ? ????? ??? ??????
+
 }
 
 setInterval(updateBalance, 2000);
 
-// ================= Modal برای TP/SL =================
-function openSettings(i) {
-  if (challengeFailed) return;
-  selectedTradeIndex = i;
-  const t = trades[i];
-  document.getElementById("tpInput").value = t.tp !== null ? t.tp : "";
-  document.getElementById("slInput").value = t.sl !== null ? t.sl : "";
+// ================= Modal ???? TP/SL =================
+
+function openSettings(index) {
+  selectedTradeIndex = index;
+  // ??? ???? ?????? ????
+  clearModalError();
+
+  document.getElementById("tpInput").value = trades[index].tp != null ? trades[index].tp : "";
+  document.getElementById("slInput").value = trades[index].sl != null ? trades[index].sl : "";
   document.getElementById("settingsModal").style.display = "flex";
 }
 
@@ -151,20 +152,90 @@ function closeSettings() {
 }
 
 function saveSettings() {
-  if (challengeFailed) return;
-  const tp = parseFloat(document.getElementById("tpInput").value);
-  const sl = parseFloat(document.getElementById("slInput").value);
+  const tpRaw = document.getElementById("tpInput").value;
+  const slRaw = document.getElementById("slInput").value;
 
-  if (selectedTradeIndex !== null) {
-    if (!isNaN(tp)) trades[selectedTradeIndex].tp = tp;
-    if (!isNaN(sl)) trades[selectedTradeIndex].sl = sl;
+  if (selectedTradeIndex === null) return;
+
+  const trade = trades[selectedTradeIndex];
+
+  // ????? ?? ??? ?? null
+  const tpVal = tpRaw === "" ? null : parseFloat(tpRaw);
+  const slVal = slRaw === "" ? null : parseFloat(slRaw);
+
+  // ????? ????? ???? ?????
+  if (tpVal !== null && isNaN(tpVal)) {
+    setModalError("????? ?? ??? (TP) ????? ????.");
+    return;
+  }
+  if (slVal !== null && isNaN(slVal)) {
+    setModalError("????? ?? ??? (SL) ????? ????.");
+    return;
   }
 
+  // ?????????? ?? ???? ??? ??????
+  if (trade.type === "BUY") {
+    // TP ???? ?????? ?? entry? SL ???? ?????? ?? entry
+    if (tpVal !== null && tpVal <= trade.entry) {
+      setModalError("???? ?????? BUY? ?? ??? ???? ??????? ?? ???? ???? ????.");
+      return;
+    }
+    if (slVal !== null && slVal >= trade.entry) {
+      setModalError("???? ?????? BUY? ?? ??? ???? ??????? ?? ???? ???? ????.");
+      return;
+    }
+    if (tpVal !== null && slVal !== null && !(slVal < trade.entry && trade.entry < tpVal)) {
+      setModalError("???? BUY ????: SL < entry < TP ?????? ????.");
+      return;
+    }
+  } else { // SELL
+    // TP ???? ?????? ?? entry? SL ???? ?????? ?? entry
+    if (tpVal !== null && tpVal >= trade.entry) {
+      setModalError("???? ?????? SELL? ?? ??? ???? ??????? ?? ???? ???? ????.");
+      return;
+    }
+    if (slVal !== null && slVal <= trade.entry) {
+      setModalError("???? ?????? SELL? ?? ??? ???? ??????? ?? ???? ???? ????.");
+      return;
+    }
+    if (tpVal !== null && slVal !== null && !(tpVal < trade.entry && trade.entry < slVal)) {
+      setModalError("???? SELL ????: TP < entry < SL ?????? ????.");
+      return;
+    }
+  }
+
+  // ?? ???? ????? ????? ????? ??
+  trade.tp = tpVal;
+  trade.sl = slVal;
+
+  clearModalError();
   closeSettings();
   renderTrades();
 }
 
-// ================= نوتیفیکیشن =================
+// ================= Modal error helpers =================
+function setModalError(msg) {
+  let modal = document.getElementById("settingsModal");
+  if (!modal) return;
+  let err = modal.querySelector("#settingsError");
+  if (!err) {
+    err = document.createElement("div");
+    err.id = "settingsError";
+    err.style.color = "red";
+    err.style.marginTop = "8px";
+    modal.querySelector(".modal-content")?.appendChild(err) || modal.appendChild(err);
+  }
+  err.textContent = msg;
+}
+
+function clearModalError() {
+  const modal = document.getElementById("settingsModal");
+  if (!modal) return;
+  const err = modal.querySelector("#settingsError");
+  if (err) err.remove();
+}
+
+// ================= ?????????? ???? =================
 function showNotification(msg, type = "info") {
   const notif = document.createElement("div");
   notif.textContent = msg;
@@ -175,15 +246,12 @@ function showNotification(msg, type = "info") {
   notif.style.borderRadius = "8px";
   notif.style.zIndex = "9999";
   notif.style.opacity = "0.95";
-  notif.style.fontSize = "14px";
-  notif.style.maxWidth = "320px";
-  notif.style.fontWeight = "bold";
-
+  // ???????? ?? ???? ???
   if (type === "error") {
-    notif.style.background = "#b00020";
+    notif.style.background = "#b00020"; // ????
     notif.style.color = "#fff";
   } else {
-    notif.style.background = "#333";
+    notif.style.background = "#333"; // ??????? ????
     notif.style.color = "#fff";
   }
 
@@ -191,41 +259,41 @@ function showNotification(msg, type = "info") {
 
   setTimeout(() => {
     notif.remove();
-  }, 5000);
+  }, 4000);
 }
 
-// ===== مانیتورینگ افت سرمایه =====
-let peakBalanceAllTime = balance;
-let peakBalanceToday = balance;
-let todayDate = new Date().toDateString();
+// ===== ?????????? ??? ?????? =====
+let peakBalanceAllTime = balance;   // ???????? ?????? ??
+let peakBalanceToday = balance;     // ???????? ?????? ?????
+let todayDate = new Date().toDateString(); // ???? ???? ??????
 
 function checkDrawdown() {
-  if (challengeFailed) return;
-
   const equity = balance + trades.reduce((acc, t) => acc + t.pnl, 0);
 
+  // ???? ??????
   const nowDate = new Date().toDateString();
   if (nowDate !== todayDate) {
     todayDate = nowDate;
-    peakBalanceToday = equity;
+    peakBalanceToday = equity; // ???? ??? ??????
   }
 
+  // ?????? ???? ??????
   if (equity > peakBalanceAllTime) peakBalanceAllTime = equity;
   if (equity > peakBalanceToday) peakBalanceToday = equity;
 
+  // ?????? ??????
   const dailyDD = ((peakBalanceToday - equity) / peakBalanceToday) * 100;
   const totalDD = ((peakBalanceAllTime - equity) / peakBalanceAllTime) * 100;
 
-  if (dailyDD >= config.dailyDD || totalDD >= config.totalDD) {
+  // ??? ?? ?? ???? ????? ?? ? ??? ??????? ???? ????
+  if (dailyDD >= config.dailyDD) {
     trades = [];
+    showNotification("? ?????? ??? ?????? ????! ??? ??????? ???? ????.");
     renderTrades();
-
-    challengeFailed = true;
-
-    const reason = dailyDD >= config.dailyDD ? "❌ حداکثر افت روزانه رسید!" : "❌ حداکثر افت کلی رسید!";
-    showNotification(reason + " همه معاملات بسته شدند.", "error");
-
-    document.getElementById("buyBtn").disabled = true;
-    document.getElementById("sellBtn").disabled = true;
+  } else if (totalDD >= config.totalDD) {
+    trades = [];
+    showNotification("? ?????? ??? ??? ????! ??? ??????? ???? ????.");
+    renderTrades();
   }
 }
+
