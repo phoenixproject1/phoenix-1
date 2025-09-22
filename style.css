@@ -53,8 +53,8 @@ th, td { padding: 6px; border: 1px solid #ddd; text-align: center; }
   width: 400px;
 }
 
-/* رنگ ردیف انتخابی */
-#symbolsTable tr.selected {
+/* رنگ سطر انتخابی */
+.selected-row {
   background-color: #ddd !important;
 }
 
