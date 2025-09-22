@@ -1,4 +1,4 @@
-// trade.js (اصلاح‌شده — افت سرمایه + نوتیفیکیشن + جلوگیری از کم شدن کمیسیون بعد از شکست)
+// trade.js (نهایی — جلوگیری از کمیسیون بعد شکست + نوتیفیکیشن درست)
 let trades = [];
 let balance = 10000;
 let selectedTradeIndex = null;
@@ -65,7 +65,7 @@ function renderTrades() {
 }
 
 function closeTrade(i, reason = null) {
-  if (challengeFailed) return; // ⛔ بعد از شکست، معامله دستی هم بسته نشه
+  if (challengeFailed) return; // ⛔ بعد از شکست بسته نشه
 
   const t = trades[i];
   const bid = parseFloat(document.getElementById("bid-" + t.symbol).textContent) || t.entry;
@@ -98,7 +98,7 @@ function removeSL(i) {
 }
 
 function updateBalance() {
-  if (challengeFailed) return; // ✅ بعد از شکست دیگه محاسبه نشه
+  if (challengeFailed) return; // ✅ بعد از شکست محاسبه متوقف بشه
 
   let unrealized = 0;
   trades.forEach((t, i) => {
@@ -164,7 +164,7 @@ function saveSettings() {
   renderTrades();
 }
 
-// ================= نوتیفیکیشن ساده =================
+// ================= نوتیفیکیشن =================
 function showNotification(msg, type = "info") {
   const notif = document.createElement("div");
   notif.textContent = msg;
@@ -176,7 +176,8 @@ function showNotification(msg, type = "info") {
   notif.style.zIndex = "9999";
   notif.style.opacity = "0.95";
   notif.style.fontSize = "14px";
-  notif.style.maxWidth = "300px";
+  notif.style.maxWidth = "320px";
+  notif.style.fontWeight = "bold";
 
   if (type === "error") {
     notif.style.background = "#b00020";
