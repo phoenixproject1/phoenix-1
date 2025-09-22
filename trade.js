@@ -76,7 +76,6 @@ function closeTrade(i, reason = null) {
 
   balance += (t.pnl - exitFee); // سود/ضرر نهایی بعد از کسر کمیسیون خروج
 
-  // نمایش نوتیفیکیشن اگر با TP یا SL بسته شد
   if (reason) {
     showNotification(`معامله ${t.symbol} (${t.type}) با ${reason} بسته شد.`, "info");
   }
@@ -133,9 +132,9 @@ function updateBalance() {
 setInterval(updateBalance, 2000);
 
 // ===== مانیتورینگ افت سرمایه =====
-let peakBalanceAllTime = balance;   // بالاترین موجودی کل
-let peakBalanceToday = balance;     // بالاترین موجودی امروز
-let todayDate = new Date().toDateString(); // برای ریست روزانه
+let peakBalanceAllTime = balance;
+let peakBalanceToday = balance;
+let todayDate = new Date().toDateString();
 
 function checkDrawdown() {
   const equity = balance + trades.reduce((acc, t) => acc + t.pnl, 0);
@@ -152,13 +151,16 @@ function checkDrawdown() {
   const dailyDD = ((peakBalanceToday - equity) / peakBalanceToday) * 100;
   const totalDD = ((peakBalanceAllTime - equity) / peakBalanceAllTime) * 100;
 
-  if (dailyDD >= config.dailyDD || totalDD >= config.totalDD) {
-    trades = [];
-    challengeFailed = true; // ✅ فعال کردن فلگ
+  if (!challengeFailed && (dailyDD >= config.dailyDD || totalDD >= config.totalDD)) {
+    // ✅ بستن همه معاملات با دلیل
+    const toClose = [...trades.keys()];
+    toClose.forEach(() => closeTrade(0, dailyDD >= config.dailyDD ? "حد ضرر روزانه" : "حد ضرر کلی"));
+
+    challengeFailed = true;
     showNotification("❌ شما در این چالش مردود شدید !!!", "error");
     renderTrades();
 
-    document.getElementById("buyBtn").disabled = true;  // ✅ غیرفعال کردن دکمه خرید
-    document.getElementById("sellBtn").disabled = true; // ✅ غیرفعال کردن دکمه فروش
+    document.getElementById("buyBtn").disabled = true;
+    document.getElementById("sellBtn").disabled = true;
   }
 }
