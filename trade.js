@@ -1,7 +1,7 @@
 // trade.js (????? ??? — ?????????? TP/SL + ???? ???? modal)
 let trades = [];
 let balance = 10000;
-let selectedTradeIndex = null; // ???? ???? ???? ???? ?????? ???
+let selectedTradeIndex = null; // برای مشخص کردن ترید انتخاب شده
 
 function openTrade(type) {
   const volume = parseFloat(document.getElementById("tradeVolume").value) || 0;
@@ -11,7 +11,8 @@ function openTrade(type) {
 
   const commissionRate = config.commission / 100;
   const fee = entry * volume * commissionRate;
-  balance -= fee; // ??????? ???? ?? ????
+  balance -= fee; // کمیسیون ورود کم میشه
+
 
   trades.push({
     symbol: selectedSymbol,
@@ -38,19 +39,19 @@ function renderTrades() {
       <td>${t.entry}</td>
       <td>
         ${t.tp !== null 
-          ? `${t.tp} <button onclick="removeTP(${i})">?</button>` 
+          ? `${t.tp} <button onclick="removeTP(${i})">❌</button>` 
           : "-"}
       </td>
       <td>
         ${t.sl !== null 
-          ? `${t.sl} <button onclick="removeSL(${i})">?</button>` 
+          ? `${t.sl} <button onclick="removeSL(${i})">❌</button>` 
           : "-"}
       </td>
       <td>${t.commission}</td>
       <td id="pnl-${i}">0</td>
       <td>
-        <button onclick="openSettings(${i})">??</button>
-        <button onclick="closeTrade(${i})">?</button>
+        <button onclick="openSettings(${i})">⚙️</button>
+        <button onclick="closeTrade(${i})">❌</button>
       </td>
     `;
     tbody.appendChild(row);
@@ -64,28 +65,30 @@ function closeTrade(i, reason = null) {
   const ask = parseFloat(document.getElementById("ask-" + t.symbol).textContent) || t.entry;
   const exitPrice = t.type === "BUY" ? bid : ask;
 
-  // ??????? ????
+  // کمیسیون خروج
   const commissionRate = config.commission / 100;
   const exitFee = exitPrice * t.volume * commissionRate;
 
-  balance += (t.pnl - exitFee); // ???/??? ????? ??? ?? ??? ??????? ????
+  balance += (t.pnl - exitFee); // سود/ضرر نهایی بعد از کسر کمیسیون خروج
 
-  // ????? ?????????? ??? ?? TP ?? SL ???? ??
+  // نمایش نوتیفیکیشن اگر با TP یا SL بسته شد
+
   if (reason) {
-    showNotification(`?????? ${t.symbol} (${t.type}) ?? ${reason} ???? ??.`, "info");
+    showNotification(`معامله ${t.symbol} (${t.type}) ?? ${reason} بسته شد.`, "info");
   }
 
   trades.splice(i, 1);
   renderTrades();
 }
 
-// ??? ???? TP
+ // حذف دستی TP
+
 function removeTP(i) {
   trades[i].tp = null;
   renderTrades();
 }
 
-// ??? ???? SL
+// حذف دستی SL
 function removeSL(i) {
   trades[i].sl = null;
   renderTrades();
@@ -99,23 +102,23 @@ function updateBalance() {
     const ask = parseFloat(document.getElementById("ask-" + t.symbol).textContent) || t.entry;
     const price = t.type === "BUY" ? bid : ask;
 
-    // ?????? PnL (??? ???? ?????)
-    t.pnl = (t.type === "BUY" ? (price - t.entry) : (t.entry - price)) * t.volume;
+// محاسبه PnL (فقط برای نمایش)
+t.pnl = (t.type === "BUY" ? (price - t.entry) : (t.entry - price)) * t.volume;
 
-    // ????? PnL
+    // نمایش PnL
     const el = document.getElementById("pnl-" + i);
     if (el) el.textContent = t.pnl.toFixed(2);
 
-    // ????? ????? ?? TP/SL
+    // بررسی رسیدن به TP/SL
     if (t.tp !== null) {
       if ((t.type === "BUY" && price >= t.tp) || (t.type === "SELL" && price <= t.tp)) {
-        closeTrade(i, "?? ??? (TP)");
+        closeTrade(i, "حد سود (TP)");
         return;
       }
     }
     if (t.sl !== null) {
       if ((t.type === "BUY" && price <= t.sl) || (t.type === "SELL" && price >= t.sl)) {
-        closeTrade(i, "?? ??? (SL)");
+        closeTrade(i, "حد ضرر (SL)");
         return;
       }
     }
@@ -123,16 +126,16 @@ function updateBalance() {
     unrealized += t.pnl;
   });
 
-  // ?????? (??? ??? ?? ???? ?????? ????? ??????)
+  // موجودی (فقط بعد از بستن معامله تغییر می‌کنه)
   document.getElementById("balance").textContent = balance.toFixed(2);
 
-  // ??????? = ?????? + ???/??? ?????
-  document.getElementById("equity").textContent = (balance + unrealized).toFixed(2);
+// اکوییتی = موجودی + سود/ضرر شناور
+document.getElementById("equity").textContent = (balance + unrealized).toFixed(2);
 }
 
 setInterval(updateBalance, 2000);
 
-// ================= Modal ???? TP/SL =================
+// ================= Modal برای TP/SL =================
 
 function openSettings(index) {
   selectedTradeIndex = index;
