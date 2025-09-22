@@ -128,6 +128,8 @@ function updateBalance() {
 
   // اکوییتی = موجودی + سود/ضرر شناور
   document.getElementById("equity").textContent = (balance + unrealized).toFixed(2);
+  checkDrawdown(); // ✅ بررسی افت سرمایه
+
 }
 
 setInterval(updateBalance, 2000);
@@ -259,3 +261,39 @@ function showNotification(msg, type = "info") {
     notif.remove();
   }, 4000);
 }
+
+// ===== مانیتورینگ افت سرمایه =====
+let peakBalanceAllTime = balance;   // بالاترین موجودی کل
+let peakBalanceToday = balance;     // بالاترین موجودی امروز
+let todayDate = new Date().toDateString(); // برای ریست روزانه
+
+function checkDrawdown() {
+  const equity = balance + trades.reduce((acc, t) => acc + t.pnl, 0);
+
+  // ریست روزانه
+  const nowDate = new Date().toDateString();
+  if (nowDate !== todayDate) {
+    todayDate = nowDate;
+    peakBalanceToday = equity; // ریست سقف روزانه
+  }
+
+  // به‌روز کردن سقف‌ها
+  if (equity > peakBalanceAllTime) peakBalanceAllTime = equity;
+  if (equity > peakBalanceToday) peakBalanceToday = equity;
+
+  // محاسبه افت‌ها
+  const dailyDD = ((peakBalanceToday - equity) / peakBalanceToday) * 100;
+  const totalDD = ((peakBalanceAllTime - equity) / peakBalanceAllTime) * 100;
+
+  // اگر از حد مجاز بیشتر شد → همه معاملات بسته شوند
+  if (dailyDD >= config.dailyDD) {
+    trades = [];
+    showNotification("❌ حداکثر افت روزانه رسید! همه معاملات بسته شدند.");
+    renderTrades();
+  } else if (totalDD >= config.totalDD) {
+    trades = [];
+    showNotification("❌ حداکثر افت کلی رسید! همه معاملات بسته شدند.");
+    renderTrades();
+  }
+}
+
