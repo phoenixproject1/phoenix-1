@@ -1,11 +1,12 @@
+// trade.js (اصلاح شده — اعتبارسنجی TP/SL + خطای داخل modal)
 let trades = [];
 let balance = 10000;
 let selectedTradeIndex = null; // برای مشخص کردن ترید انتخاب شده
 
 function openTrade(type) {
-  const volume = parseFloat(document.getElementById("tradeVolume").value);
-  const bid = parseFloat(document.getElementById("bid-" + selectedSymbol).textContent);
-  const ask = parseFloat(document.getElementById("ask-" + selectedSymbol).textContent);
+  const volume = parseFloat(document.getElementById("tradeVolume").value) || 0;
+  const bid = parseFloat(document.getElementById("bid-" + selectedSymbol).textContent) || 0;
+  const ask = parseFloat(document.getElementById("ask-" + selectedSymbol).textContent) || 0;
   const entry = type === "BUY" ? ask : bid;
 
   const commissionRate = config.commission / 100;
@@ -69,11 +70,9 @@ function closeTrade(i, reason = null) {
 
   balance += (t.pnl - exitFee); // سود/ضرر نهایی بعد از کسر کمیسیون خروج
 
-  // ✅ نمایش نوتیفیکیشن اگر با TP یا SL بسته شد
+  // نمایش نوتیفیکیشن اگر با TP یا SL بسته شد
   if (reason) {
-    showNotification(
-      `معامله ${t.symbol} (${t.type}) با ${reason} بسته شد.`
-    );
+    showNotification(`معامله ${t.symbol} (${t.type}) با ${reason} بسته شد.`, "info");
   }
 
   trades.splice(i, 1);
@@ -94,6 +93,7 @@ function removeSL(i) {
 
 function updateBalance() {
   let unrealized = 0;
+  // توجه: اگر trade بسته شود، renderTrades() دوباره فراخوانی می‌شود و این تابع مجدداً اجرا می‌شود.
   trades.forEach((t, i) => {
     const bid = parseFloat(document.getElementById("bid-" + t.symbol).textContent) || t.entry;
     const ask = parseFloat(document.getElementById("ask-" + t.symbol).textContent) || t.entry;
@@ -136,8 +136,11 @@ setInterval(updateBalance, 2000);
 
 function openSettings(index) {
   selectedTradeIndex = index;
-  document.getElementById("tpInput").value = trades[index].tp || "";
-  document.getElementById("slInput").value = trades[index].sl || "";
+  // پاک کردن خطاهای قبلی
+  clearModalError();
+
+  document.getElementById("tpInput").value = trades[index].tp != null ? trades[index].tp : "";
+  document.getElementById("slInput").value = trades[index].sl != null ? trades[index].sl : "";
   document.getElementById("settingsModal").style.display = "flex";
 }
 
@@ -147,59 +150,112 @@ function closeSettings() {
 }
 
 function saveSettings() {
-  const tp = document.getElementById("tpInput").value;
-  const sl = document.getElementById("slInput").value;
+  const tpRaw = document.getElementById("tpInput").value;
+  const slRaw = document.getElementById("slInput").value;
 
-  if (selectedTradeIndex !== null) {
-    const trade = trades[selectedTradeIndex];
+  if (selectedTradeIndex === null) return;
 
-    // ✅ اعتبارسنجی TP/SL
-    if (tp) {
-      const tpVal = parseFloat(tp);
-      if ((trade.type === "BUY" && tpVal <= trade.entry) ||
-          (trade.type === "SELL" && tpVal >= trade.entry)) {
-        showNotification("❌ حد سود (TP) نامعتبر است.");
-        return;
-      }
-      trade.tp = tpVal;
-    } else {
-      trade.tp = null;
+  const trade = trades[selectedTradeIndex];
+
+  // تبدیل به عدد یا null
+  const tpVal = tpRaw === "" ? null : parseFloat(tpRaw);
+  const slVal = slRaw === "" ? null : parseFloat(slRaw);
+
+  // بررسی معتبر بودن اعداد
+  if (tpVal !== null && isNaN(tpVal)) {
+    setModalError("مقدار حد سود (TP) معتبر نیست.");
+    return;
+  }
+  if (slVal !== null && isNaN(slVal)) {
+    setModalError("مقدار حد ضرر (SL) معتبر نیست.");
+    return;
+  }
+
+  // اعتبارسنجی بر اساس نوع پوزیشن
+  if (trade.type === "BUY") {
+    // TP باید بزرگتر از entry، SL باید کوچکتر از entry
+    if (tpVal !== null && tpVal <= trade.entry) {
+      setModalError("برای پوزیشن BUY، حد سود باید بزرگ‌تر از قیمت ورود باشد.");
+      return;
     }
-
-    if (sl) {
-      const slVal = parseFloat(sl);
-      if ((trade.type === "BUY" && slVal >= trade.entry) ||
-          (trade.type === "SELL" && slVal <= trade.entry)) {
-        showNotification("❌ حد ضرر (SL) نامعتبر است.");
-        return;
-      }
-      trade.sl = slVal;
-    } else {
-      trade.sl = null;
+    if (slVal !== null && slVal >= trade.entry) {
+      setModalError("برای پوزیشن BUY، حد ضرر باید کوچک‌تر از قیمت ورود باشد.");
+      return;
+    }
+    if (tpVal !== null && slVal !== null && !(slVal < trade.entry && trade.entry < tpVal)) {
+      setModalError("برای BUY باید: SL < entry < TP برقرار باشد.");
+      return;
+    }
+  } else { // SELL
+    // TP باید کوچکتر از entry، SL باید بزرگتر از entry
+    if (tpVal !== null && tpVal >= trade.entry) {
+      setModalError("برای پوزیشن SELL، حد سود باید کوچک‌تر از قیمت ورود باشد.");
+      return;
+    }
+    if (slVal !== null && slVal <= trade.entry) {
+      setModalError("برای پوزیشن SELL، حد ضرر باید بزرگ‌تر از قیمت ورود باشد.");
+      return;
+    }
+    if (tpVal !== null && slVal !== null && !(tpVal < trade.entry && trade.entry < slVal)) {
+      setModalError("برای SELL باید: TP < entry < SL برقرار باشد.");
+      return;
     }
   }
 
+  // در صورت معتبر بودن، ذخیره کن
+  trade.tp = tpVal;
+  trade.sl = slVal;
+
+  clearModalError();
   closeSettings();
   renderTrades();
 }
 
+// ================= Modal error helpers =================
+function setModalError(msg) {
+  let modal = document.getElementById("settingsModal");
+  if (!modal) return;
+  let err = modal.querySelector("#settingsError");
+  if (!err) {
+    err = document.createElement("div");
+    err.id = "settingsError";
+    err.style.color = "red";
+    err.style.marginTop = "8px";
+    modal.querySelector(".modal-content")?.appendChild(err) || modal.appendChild(err);
+  }
+  err.textContent = msg;
+}
+
+function clearModalError() {
+  const modal = document.getElementById("settingsModal");
+  if (!modal) return;
+  const err = modal.querySelector("#settingsError");
+  if (err) err.remove();
+}
+
 // ================= نوتیفیکیشن ساده =================
-function showNotification(msg) {
+function showNotification(msg, type = "info") {
   const notif = document.createElement("div");
   notif.textContent = msg;
   notif.style.position = "fixed";
   notif.style.bottom = "20px";
   notif.style.right = "20px";
-  notif.style.background = "#333";
-  notif.style.color = "#fff";
   notif.style.padding = "10px 15px";
   notif.style.borderRadius = "8px";
   notif.style.zIndex = "9999";
-  notif.style.opacity = "0.9";
+  notif.style.opacity = "0.95";
+  // رنگ‌بندی بر اساس نوع
+  if (type === "error") {
+    notif.style.background = "#b00020"; // قرمز
+    notif.style.color = "#fff";
+  } else {
+    notif.style.background = "#333"; // خاکستری تیره
+    notif.style.color = "#fff";
+  }
 
   document.body.appendChild(notif);
 
   setTimeout(() => {
     notif.remove();
-  }, 5000);
+  }, 4000);
 }
