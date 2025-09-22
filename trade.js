@@ -253,6 +253,3 @@ window.closeSettings = closeSettings;
 window.saveSettings = saveSettings;
 window.removeTP = removeTP;
 window.removeSL = removeSL;
-
-
-checkDrawdown();
