@@ -1,13 +1,13 @@
-// trade.js (اصلاح شده — اعتبارسنجی TP/SL + خطای داخل modal)
+// trade.js (کامل — با TP/SL Modal + افت سرمایه + نوتیفیکیشن)
 let trades = [];
 let balance = 10000;
-let selectedTradeIndex = null; // برای مشخص کردن ترید انتخاب شده
+let selectedTradeIndex = null; 
 let challengeFailed = false;   // ✅ پرچم پایان چالش
 
 function openTrade(type) {
   if (challengeFailed) {
     showNotification("شما در این چالش مردود شدید !!!", "error");
-    return; // ✅ جلوگیری از باز شدن معامله جدید
+    return;
   }
 
   const volume = parseFloat(document.getElementById("tradeVolume").value) || 0;
@@ -17,7 +17,7 @@ function openTrade(type) {
 
   const commissionRate = config.commission / 100;
   const fee = entry * volume * commissionRate;
-  balance -= fee; // کمیسیون ورود کم میشه
+  balance -= fee;
 
   trades.push({
     symbol: selectedSymbol,
@@ -65,16 +65,17 @@ function renderTrades() {
 }
 
 function closeTrade(i, reason = null) {
+  if (challengeFailed) return;
+
   const t = trades[i];
   const bid = parseFloat(document.getElementById("bid-" + t.symbol).textContent) || t.entry;
   const ask = parseFloat(document.getElementById("ask-" + t.symbol).textContent) || t.entry;
   const exitPrice = t.type === "BUY" ? bid : ask;
 
-  // کمیسیون خروج
   const commissionRate = config.commission / 100;
   const exitFee = exitPrice * t.volume * commissionRate;
 
-  balance += (t.pnl - exitFee); // سود/ضرر نهایی بعد از کسر کمیسیون خروج
+  balance += (t.pnl - exitFee);
 
   if (reason) {
     showNotification(`معامله ${t.symbol} (${t.type}) با ${reason} بسته شد.`, "info");
@@ -126,10 +127,64 @@ function updateBalance() {
 
   document.getElementById("balance").textContent = balance.toFixed(2);
   document.getElementById("equity").textContent = (balance + unrealized).toFixed(2);
+
   checkDrawdown();
 }
 
 setInterval(updateBalance, 2000);
+
+// ================= Modal برای TP/SL =================
+function openSettings(i) {
+  selectedTradeIndex = i;
+  const t = trades[i];
+  document.getElementById("tpInput").value = t.tp !== null ? t.tp : "";
+  document.getElementById("slInput").value = t.sl !== null ? t.sl : "";
+  document.getElementById("settingsModal").style.display = "flex";
+}
+
+function closeSettings() {
+  document.getElementById("settingsModal").style.display = "none";
+  selectedTradeIndex = null;
+}
+
+function saveSettings() {
+  const tp = parseFloat(document.getElementById("tpInput").value);
+  const sl = parseFloat(document.getElementById("slInput").value);
+
+  if (selectedTradeIndex !== null) {
+    if (!isNaN(tp)) trades[selectedTradeIndex].tp = tp;
+    if (!isNaN(sl)) trades[selectedTradeIndex].sl = sl;
+  }
+
+  closeSettings();
+  renderTrades();
+}
+
+// ================= نوتیفیکیشن ساده =================
+function showNotification(msg, type = "info") {
+  const notif = document.createElement("div");
+  notif.textContent = msg;
+  notif.style.position = "fixed";
+  notif.style.bottom = "20px";
+  notif.style.right = "20px";
+  notif.style.padding = "10px 15px";
+  notif.style.borderRadius = "8px";
+  notif.style.zIndex = "9999";
+  notif.style.opacity = "0.95";
+  if (type === "error") {
+    notif.style.background = "#b00020";
+    notif.style.color = "#fff";
+  } else {
+    notif.style.background = "#333";
+    notif.style.color = "#fff";
+  }
+
+  document.body.appendChild(notif);
+
+  setTimeout(() => {
+    notif.remove();
+  }, 4000);
+}
 
 // ===== مانیتورینگ افت سرمایه =====
 let peakBalanceAllTime = balance;
@@ -137,6 +192,8 @@ let peakBalanceToday = balance;
 let todayDate = new Date().toDateString();
 
 function checkDrawdown() {
+  if (challengeFailed) return;
+
   const equity = balance + trades.reduce((acc, t) => acc + t.pnl, 0);
 
   const nowDate = new Date().toDateString();
@@ -151,14 +208,14 @@ function checkDrawdown() {
   const dailyDD = ((peakBalanceToday - equity) / peakBalanceToday) * 100;
   const totalDD = ((peakBalanceAllTime - equity) / peakBalanceAllTime) * 100;
 
-  if (!challengeFailed && (dailyDD >= config.dailyDD || totalDD >= config.totalDD)) {
-    // ✅ بستن همه معاملات با دلیل
-    const toClose = [...trades.keys()];
-    toClose.forEach(() => closeTrade(0, dailyDD >= config.dailyDD ? "حد ضرر روزانه" : "حد ضرر کلی"));
+  if (dailyDD >= config.dailyDD || totalDD >= config.totalDD) {
+    trades = [];
+    renderTrades();
 
     challengeFailed = true;
-    showNotification("❌ شما در این چالش مردود شدید !!!", "error");
-    renderTrades();
+
+    const reason = dailyDD >= config.dailyDD ? "❌ حداکثر افت روزانه رسید!" : "❌ حداکثر افت کلی رسید!";
+    showNotification(reason + " همه معاملات بسته شدند.", "error");
 
     document.getElementById("buyBtn").disabled = true;
     document.getElementById("sellBtn").disabled = true;
