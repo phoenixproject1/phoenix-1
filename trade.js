@@ -151,9 +151,34 @@ function saveSettings() {
   const sl = document.getElementById("slInput").value;
 
   if (selectedTradeIndex !== null) {
-    trades[selectedTradeIndex].tp = tp ? parseFloat(tp) : null;
-    trades[selectedTradeIndex].sl = sl ? parseFloat(sl) : null;
+    const trade = trades[selectedTradeIndex];
+
+    // ✅ اعتبارسنجی TP/SL
+    if (tp) {
+      const tpVal = parseFloat(tp);
+      if ((trade.type === "BUY" && tpVal <= trade.entry) ||
+          (trade.type === "SELL" && tpVal >= trade.entry)) {
+        showNotification("❌ حد سود (TP) نامعتبر است.");
+        return;
+      }
+      trade.tp = tpVal;
+    } else {
+      trade.tp = null;
+    }
+
+    if (sl) {
+      const slVal = parseFloat(sl);
+      if ((trade.type === "BUY" && slVal >= trade.entry) ||
+          (trade.type === "SELL" && slVal <= trade.entry)) {
+        showNotification("❌ حد ضرر (SL) نامعتبر است.");
+        return;
+      }
+      trade.sl = slVal;
+    } else {
+      trade.sl = null;
+    }
   }
+
   closeSettings();
   renderTrades();
 }
@@ -176,5 +201,5 @@ function showNotification(msg) {
 
   setTimeout(() => {
     notif.remove();
-  }, 3000);
+  }, 5000);
 }
