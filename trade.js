@@ -34,11 +34,20 @@ function renderTrades() {
       <td>${t.symbol}</td>
       <td>${t.type}</td>
       <td>${t.volume}</td>
-      <td>${t.entry}</td>
       <td>${t.commission}</td>
       <td id="pnl-${i}">0</td>
-      <td>${t.tp !== null ? t.tp : "-"}</td>
-      <td>${t.sl !== null ? t.sl : "-"}</td>
+      <td>
+        ${t.tp !== null 
+          ? `${t.tp} <button onclick="removeTP(${i})">❌</button>` 
+          : "-"}
+      </td>
+      <td>
+        ${t.sl !== null 
+          ? `${t.sl} <button onclick="removeSL(${i})">❌</button>` 
+          : "-"}
+      </td>
+      <td>${t.entry}</td>
+
       <td>
         <button onclick="openSettings(${i})">⚙️</button>
         <button onclick="closeTrade(${i})">❌</button>
@@ -55,19 +64,50 @@ function closeTrade(i) {
   renderTrades();
 }
 
+// حذف دستی TP
+function removeTP(i) {
+  trades[i].tp = null;
+  renderTrades();
+}
+
+// حذف دستی SL
+function removeSL(i) {
+  trades[i].sl = null;
+  renderTrades();
+}
+
 function updateBalance() {
   let unrealized = 0;
   trades.forEach((t, i) => {
     const bid = parseFloat(document.getElementById("bid-" + t.symbol).textContent) || t.entry;
     const ask = parseFloat(document.getElementById("ask-" + t.symbol).textContent) || t.entry;
     const price = t.type === "BUY" ? bid : ask;
+
+    // محاسبه PnL
     t.pnl = (t.type === "BUY" ? (price - t.entry) : (t.entry - price)) * t.volume;
 
+    // نمایش PnL
     const el = document.getElementById("pnl-" + i);
     if (el) el.textContent = t.pnl.toFixed(2);
 
+    // بررسی رسیدن به TP/SL
+    if (t.tp !== null) {
+      if ((t.type === "BUY" && price >= t.tp) || (t.type === "SELL" && price <= t.tp)) {
+        closeTrade(i);
+        return; // چون trades تغییر کرد باید متوقف بشه
+      }
+    }
+    if (t.sl !== null) {
+      if ((t.type === "BUY" && price <= t.sl) || (t.type === "SELL" && price >= t.sl)) {
+        closeTrade(i);
+        return;
+      }
+    }
+
     unrealized += t.pnl;
   });
+
+  // آپدیت موجودی و اکوییتی
   document.getElementById("balance").textContent = balance.toFixed(2);
   document.getElementById("equity").textContent = (balance + unrealized).toFixed(2);
 }
