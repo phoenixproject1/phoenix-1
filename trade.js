@@ -123,17 +123,26 @@ export function updateBalance() {
 
 setInterval(updateBalance, 2000);
 
+// trade.js
+
+// ... کدهای قبلی همونطور بمونه ...
+
+// 👉 اضافه کردن توابع به window برای دسترسی از HTML
 window.openTrade = openTrade;
 window.closeTrade = closeTrade;
-window.openSettings = (i) => { selectedTradeIndex = i; document.getElementById("settingsModal").style.display = "flex"; };
-window.closeSettings = () => { document.getElementById("settingsModal").style.display = "none"; };
-window.saveSettings = () => {
-  const tp = parseFloat(document.getElementById("tpInput").value);
-  const sl = parseFloat(document.getElementById("slInput").value);
-  if (selectedTradeIndex !== null && trades[selectedTradeIndex]) {
-    if (!isNaN(tp)) trades[selectedTradeIndex].tp = tp;
-    if (!isNaN(sl)) trades[selectedTradeIndex].sl = sl;
-  }
-  renderTrades();
-  window.closeSettings();
+window.openSettings = openSettings;
+window.closeSettings = closeSettings;
+window.saveSettings = saveSettings;
 };
+
+// trade.js
+
+// ... کدهای قبلی همونطور بمونه ...
+
+// 👉 اضافه کردن توابع به window برای دسترسی از HTML
+window.openTrade = openTrade;
+window.closeTrade = closeTrade;
+window.openSettings = openSettings;
+window.closeSettings = closeSettings;
+window.saveSettings = saveSettings;
+
