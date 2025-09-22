@@ -34,8 +34,7 @@ function renderTrades() {
       <td>${t.symbol}</td>
       <td>${t.type}</td>
       <td>${t.volume}</td>
-      <td>${t.commission}</td>
-      <td id="pnl-${i}">0</td>
+      <td>${t.entry}</td>
       <td>
         ${t.tp !== null 
           ? `${t.tp} <button onclick="removeTP(${i})">❌</button>` 
@@ -46,7 +45,8 @@ function renderTrades() {
           ? `${t.sl} <button onclick="removeSL(${i})">❌</button>` 
           : "-"}
       </td>
-      <td>${t.entry}</td>
+      <td>${t.commission}</td>
+      <td id="pnl-${i}">0</td>
 
       <td>
         <button onclick="openSettings(${i})">⚙️</button>
