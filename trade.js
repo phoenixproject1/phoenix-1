@@ -1,82 +1,57 @@
-let balance = 10000;
-let initialBalance = 10000;
 let trades = [];
+let balance = 10000;
 
-// باز کردن معامله
 function openTrade(type) {
-  const price = chart.data.datasets[0].data.slice(-1)[0]; // آخرین قیمت چارت
-  if (!price) {
-    alert("قیمت موجود نیست");
-    return;
-  }
+  const volume = parseFloat(document.getElementById("tradeVolume").value);
+  const bid = parseFloat(document.getElementById("bid-" + selectedSymbol).textContent);
+  const ask = parseFloat(document.getElementById("ask-" + selectedSymbol).textContent);
+  const entry = type === "BUY" ? ask : bid;
 
-  const volume = 1; // فعلاً ثابت
-  const commission = price * volume * (config.commission / 100);
+  const commission = config.commission / 100;
+  const fee = entry * volume * commission;
+  balance -= fee;
 
-  const trade = {
-    symbol: selectedSymbol,
-    type,
-    volume,
-    entry: price,
-    commission,
-    pnl: 0
-  };
-
-  trades.push(trade);
+  trades.push({symbol: selectedSymbol, type, volume, entry, pnl: 0});
   renderTrades();
 }
 
-// بستن معامله
-function closeTrade(index) {
-  trades.splice(index, 1);
-  renderTrades();
-}
-
-// بروزرسانی سود/ضرر
-function updateTrades(currentPrice) {
-  trades.forEach(trade => {
-    if (trade.type === "BUY") {
-      trade.pnl = (currentPrice - trade.entry) * trade.volume - trade.commission;
-    } else {
-      trade.pnl = (trade.entry - currentPrice) * trade.volume - trade.commission;
-    }
-  });
-  renderTrades();
-}
-
-// نمایش جدول معاملات
 function renderTrades() {
-  const tbody = document.querySelector("#tradesTable tbody");
+  const tbody = document.querySelector("#trades-table tbody");
   tbody.innerHTML = "";
-
-  let equity = balance;
-
-  trades.forEach((trade, i) => {
-    equity += trade.pnl;
-
+  trades.forEach((t, i) => {
     const row = document.createElement("tr");
     row.innerHTML = `
-      <td>${trade.symbol}</td>
-      <td style="color:${trade.type === "BUY" ? "blue" : "red"}">${trade.type}</td>
-      <td>${trade.volume}</td>
-      <td>${trade.entry.toFixed(2)}</td>
-      <td>${chart.data.datasets[0].data.slice(-1)[0]?.toFixed(2) || "---"}</td>
-      <td style="color:${trade.pnl >= 0 ? "blue" : "red"}">${trade.pnl.toFixed(2)}</td>
-      <td>${trade.commission.toFixed(2)}</td>
-      <td><button onclick="closeTrade(${i})">بستن</button></td>
+      <td>${t.symbol}</td>
+      <td>${t.type}</td>
+      <td>${t.volume}</td>
+      <td>${t.entry}</td>
+      <td id="pnl-${i}">0</td>
+      <td><button onclick="closeTrade(${i})">❌</button></td>
     `;
     tbody.appendChild(row);
   });
-
-  document.getElementById("balanceRow").textContent =
-    `Balance: ${balance.toFixed(2)} | Equity: ${equity.toFixed(2)}`;
-
-  // بررسی حد ضرر روزانه و کلی
-  const dailyLoss = ((initialBalance - equity) / initialBalance) * 100;
-  if (dailyLoss >= config.dailyDrawdown) {
-    alert("❌ حد ضرر روزانه رد شده است.");
-  }
-  if (dailyLoss >= config.totalDrawdown) {
-    alert("❌ حد ضرر کلی رد شده است.");
-  }
+  updateBalance();
 }
+
+function closeTrade(i) {
+  balance += trades[i].pnl;
+  trades.splice(i,1);
+  renderTrades();
+}
+
+function updateBalance() {
+  let unrealized = 0;
+  trades.forEach(t => {
+    const bid = parseFloat(document.getElementById("bid-" + t.symbol).textContent) || t.entry;
+    const ask = parseFloat(document.getElementById("ask-" + t.symbol).textContent) || t.entry;
+    const price = t.type === "BUY" ? bid : ask;
+    t.pnl = (t.type === "BUY" ? (price - t.entry) : (t.entry - price)) * t.volume;
+    const el = document.getElementById("pnl-" + trades.indexOf(t));
+    if (el) el.textContent = t.pnl.toFixed(2);
+    unrealized += t.pnl;
+  });
+  document.getElementById("balance").textContent = balance.toFixed(2);
+  document.getElementById("equity").textContent = (balance + unrealized).toFixed(2);
+}
+
+setInterval(updateBalance, 2000);
